@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Target, Plus, ChevronUp, ChevronDown, Minus, Maximize2, Edit3, Trash2 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
 export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
-  const { goals, themeColor, deleteGoal } = useFinancial();
+  const { goals, themeColor, deleteGoal, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+}, [isAllExpanded]);
 
   return (
     <Card>

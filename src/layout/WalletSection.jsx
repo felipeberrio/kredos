@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, ChevronUp, ChevronDown, CheckCircle2, Minus, Maximize2, Settings, Trash2 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { WalletItem } from '../components/WalletItem';
 
 export const WalletSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
-  const { wallets, selectedWalletId, setSelectedWalletId, themeColor, deleteWallet } = useFinancial();
+  const { wallets, selectedWalletId, setSelectedWalletId, themeColor, deleteWallet, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+}, [isAllExpanded]);
 
   const handleWalletClick = (id) => {
     if (selectedWalletId === id) setSelectedWalletId(null);

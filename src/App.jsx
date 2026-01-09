@@ -14,9 +14,11 @@ import { DateFilter } from './components/DateFilter';
 import { Modal } from './components/Modal';
 import { ProjectionModal } from './components/ProjectionModal';
 import { ThemeSelector } from './components/ThemeSelector';
-import { Moon, Sun, Eye, EyeOff, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2 } from 'lucide-react';
+import { Moon, Sun, Eye, EyeOff, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket} from 'lucide-react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { formatCurrency } from './utils/formatters';
+import { EventsSection } from './layout/EventsSection';
+
 
 export default function App() {
   const { 
@@ -26,16 +28,15 @@ export default function App() {
     budgets, setBudgets: setGlobalBudgets, categories,
     workLogs, addWorkLog, updateWorkLog, 
     companies, addCompany, updateCompany,
-    updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory,
-    calculatePayDate // <--- IMPORTANTE: Para autocalcular fecha cobro
+    updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, setIsAllExpanded,
+    calculatePayDate,useSemanticColors, setUseSemanticColors // <--- IMPORTANTE: Para autocalcular fecha cobro
   } = useFinancial();
   
   // ORDEN COLUMNA IZQUIERDA (Sin 'work' aquí, porque no cabe)
   const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['wallets', 'categories', 'budgets', 'goals', 'subs']);
   
   // ORDEN COLUMNA DERECHA (Nueva zona para Trabajo e Historial)
-  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v2', ['work', 'history']);
-
+  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v3', ['work', 'events', 'history']);
   const [editingItem, setEditingItem] = useState(null);
   
   // MODALS
@@ -215,6 +216,7 @@ export default function App() {
 
       switch(key) {
           case 'work': return <WorkSection {...props} />;
+          case 'events': return <EventsSection {...props} />;
           case 'history': return <HistorySection {...props} onEdit={(item) => setEditingItem(item)} />;
           default: return null;
       }
@@ -228,8 +230,23 @@ export default function App() {
         <h1 className="font-black uppercase italic text-xl tracking-tighter">FinPlan <span className="text-blue-500">PRO</span></h1>
         <DateFilter />
         <div className="flex items-center gap-4">
+          {/* NUEVO BOTÓN: Alternar Colores Semánticos (Reset a Rojo/Verde) */}
+          <button 
+              onClick={() => setUseSemanticColors(!useSemanticColors)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                  useSemanticColors 
+                  ? (darkMode ? 'bg-slate-800 text-emerald-400 border-slate-700' : 'bg-slate-100 text-emerald-600 border-slate-200')
+                  : (darkMode ? 'bg-slate-900 text-slate-500 border-transparent' : 'bg-white text-slate-400 border-transparent')
+              }`}
+              title="Alternar entre colores Rojo/Verde o color del Tema"
+          >
+              {useSemanticColors ? <PaintBucket size={16}/> : <Brush size={16}/>}
+              <span className="hidden md:inline">{useSemanticColors ? 'Semántico' : 'Unicolor'}</span>
+          </button>
           <ThemeSelector />
           <div className="flex gap-2">
+            {/* Botón Minimizar/Maximizar Todo */}
+            <button onClick={() => setIsAllExpanded(!isAllExpanded)}className={`p-2 rounded-xl transition-colors ${darkMode ? 'hover:bg-slate-800 text-white' : 'hover:bg-slate-100 text-slate-600'}`}title={isAllExpanded ? "Minimizar todo" : "Maximizar todo"}>{isAllExpanded ? <ChevronsUp size={20}/> : <ChevronsDown size={20}/>}</button>
             <button onClick={() => setPrivacyMode(!privacyMode)} className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">{privacyMode ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
             <button onClick={() => setDarkMode(!darkMode)} className={`p-2 rounded-xl transition-transform active:scale-90 ${darkMode ? 'bg-amber-500 text-slate-900' : 'bg-slate-900 text-white'}`}>{darkMode ? <Sun size={20}/> : <Moon size={20}/>}</button>
           </div>

@@ -1,12 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Briefcase, Plus, ChevronUp, ChevronDown, Minus, Maximize2, CheckCircle2, Clock, MapPin, Edit3, Trash2, Building2, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, Minimize2, ArrowUpDown, TrendingUp, CalendarDays, X, Wallet, Copy, Banknote, AlertCircle } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
 export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit, onAddCompany, onEditCompany }) => {
-  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany } = useFinancial();
+  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany,isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+}, [isAllExpanded]);
   const [isMaximized, setIsMaximized] = useState(false);
   
   // --- ESTADOS ---
@@ -17,7 +20,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
   const [payingLogId, setPayingLogId] = useState(null); 
 
   const [currentDate, setCurrentDate] = useState(new Date());
-
+  
   // --- DATOS GENERALES ---
   const pendingLogs = workLogs.filter(log => log.status === 'pending');
   const totalOwed = pendingLogs.reduce((acc, log) => acc + Number(log.total), 0);
@@ -30,8 +33,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
   };
 
   // --- LOGICA PESTAÑA PAGOS (AGRUPACIÓN POR FECHA) ---
-
-  
   const upcomingPayments = useMemo(() => {
       const groups = {};
       
@@ -42,11 +43,13 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
               groups[dateKey] = {
                   date: dateKey,
                   total: 0,
-                  logs: [], 
-                  companies: new Set() 
+                  count: 0,
+                  logs: [],
+                  companies: new Set()
               };
           }
           groups[dateKey].total += Number(log.total);
+          groups[dateKey].count += 1; // Faltaba este contador
           groups[dateKey].logs.push(log);
           groups[dateKey].companies.add(log.companyName);
       });
@@ -173,7 +176,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
         {/* HEADER */}
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2 shrink-0">
             {/* TABS (Estilo Limpio) */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner">
+            <div className={`flex p-1 rounded-xl shadow-inner ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                 <button onClick={() => setActiveTab('logs')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'logs' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Turnos</button>
                 <button onClick={() => setActiveTab('payments')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'payments' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Pagos</button>
                 <button onClick={() => setActiveTab('companies')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'companies' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Empresas</button>
@@ -472,6 +475,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
             </div>
         )}
 
+        
         {/* --- VISTA PAGOS (NUEVA PESTAÑA ORDENADA POR FECHA) --- */}
         {activeTab === 'payments' && viewType === 'list' && (
             <div className="h-full overflow-y-auto custom-scrollbar p-1">
@@ -569,7 +573,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
             </div>
         )}
 
-
         {/* --- VISTA EMPRESAS --- */}
         {activeTab === 'companies' && (
             <div className="h-full overflow-y-auto custom-scrollbar">
@@ -578,7 +581,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                         const debt = getCompanyDebt(comp.id);
                         const monthProd = getCompanyMonthProduction(comp.id);
                         return (
-                            <div key={comp.id} className="relative p-3 rounded-2xl border border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800/50 hover:shadow-lg transition-all group">
+                            <div key={comp.id} className={`relative p-3 rounded-2xl border hover:shadow-lg transition-all group ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'}`}>
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 dark:bg-slate-700 text-slate-500 font-bold shadow-inner">{comp.name.charAt(0)}</div>
                                     <div className="text-right">
@@ -587,7 +590,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                     </div>
                                 </div>
                                 <div>
-                                    <h4 className="text-xs font-bold text-slate-800 dark:text-white truncate">{comp.name}</h4>
+                                    <h4 className={`text-xs font-bold truncate ${darkMode ? 'text-white' : 'text-slate-800'}`}>{comp.name}</h4>
                                     <div className="flex flex-wrap gap-1 mt-1">
                                         <span className={`text-[7px] font-bold uppercase px-1.5 py-0.5 rounded border ${comp.type === 'full-time' ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>{comp.type === 'full-time' ? 'Full' : 'Part'}</span>
                                         <span className="text-[7px] font-bold px-1.5 py-0.5 rounded border bg-slate-50 text-slate-500 border-slate-100">${comp.rate}/h</span>
@@ -613,8 +616,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
 
   return (
     <>
-        <Card className="overflow-hidden flex flex-col h-full min-h-[300px]">
-            <div className="flex justify-between items-center mb-2 shrink-0">
+        <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-full min-h-[300px]' : 'h-auto'}`}>            <div className="flex justify-between items-center mb-2 shrink-0">
                 <div className="flex flex-col">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     <Briefcase size={14} style={{ color: themeColor }}/> Gestión Trabajo

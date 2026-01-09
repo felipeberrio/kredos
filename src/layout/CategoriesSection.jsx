@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tag, Plus, X, ChevronUp, ChevronDown, Minus, Maximize2, Edit3, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 
 export const CategoriesSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
-  const { categories, incomeCategories, addCategory, deleteCategory, darkMode, themeColor } = useFinancial();
+  const { categories, incomeCategories, addCategory, deleteCategory, darkMode, themeColor, isAllExpanded } = useFinancial();
   const [isAdding, setIsAdding] = useState(false);
   const [newCat, setNewCat] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
+    useEffect(() => {
+    setIsExpanded(isAllExpanded);
+  }, [isAllExpanded]);
   const [activeTab, setActiveTab] = useState('expense'); // 'expense' | 'income'
 
   const currentList = activeTab === 'expense' ? categories : incomeCategories;
 
+
+  
   const handleAdd = (e) => {
     e.preventDefault();
     if (newCat.trim()) {

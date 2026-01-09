@@ -1,15 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect ,useMemo } from 'react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 import { ArrowUpCircle, ArrowDownCircle, Trash2, Edit3, Tag, Filter, ArrowUpDown, Wallet, RefreshCw, ChevronUp, ChevronDown, Minus, Maximize2, History } from 'lucide-react';
 
 export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
-  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, dateFilter, themeColor, darkMode } = useFinancial();
+  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, dateFilter, themeColor, darkMode,isAllExpanded } = useFinancial();
   
   // Estados de UI
   const [isExpanded, setIsExpanded] = useState(true);
-
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+}, [isAllExpanded]);
   // Estados de Filtro Local
   const [localWallet, setLocalWallet] = useState('all');
   const [localCategory, setLocalCategory] = useState('all');

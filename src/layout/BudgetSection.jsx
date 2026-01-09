@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChart, Plus, ChevronUp, ChevronDown, Minus, Maximize2, Trash2, AlertTriangle, Edit3, Clock, Filter } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
 export const BudgetSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
-  const { budgets, getBudgetProgress, deleteBudget, darkMode, themeColor, selectedCategory, setSelectedCategory } = useFinancial();
+  const { budgets, getBudgetProgress, deleteBudget, darkMode, themeColor, selectedCategory, setSelectedCategory, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+  }, [isAllExpanded]);
 
   // --- CÁLCULO DE TIEMPO ---
   const now = new Date();

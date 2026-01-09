@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Zap, Trash2, Plus, ChevronUp, ChevronDown, Minus, Maximize2, Edit3 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
 export const SubscriptionSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
-  const { subscriptions, deleteSubscription, darkMode, themeColor } = useFinancial();
+  const { subscriptions, deleteSubscription, darkMode, themeColor, isAllExpanded } = useFinancial();
   
   // Estado para contraer/expandir la tarjeta
   const [isExpanded, setIsExpanded] = useState(true);
+  useEffect(() => {
+    setIsExpanded(isAllExpanded);
+}, [isAllExpanded]);
   
   // Cálculo del total mensual
   const monthlyTotal = subscriptions.reduce((acc, sub) => acc + Number(sub.price), 0);

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const FinancialContext = createContext();
@@ -11,6 +11,9 @@ export const FinancialProvider = ({ children }) => {
     { id: 'w1', name: 'Efectivo', type: 'cash', balance: 0 },
     { id: 'w2', name: 'Banco', type: 'bank', balance: 0 }
   ]);
+// 1. Nuevo estado para activar/desactivar Rojo y Verde en botones
+  const [useSemanticColors, setUseSemanticColors] = useLocalStorage('fin_semantic_mode', true);
+
   const [subscriptions, setSubscriptions] = useLocalStorage('fin_subscriptions', []);
   const [goals, setGoals] = useLocalStorage('fin_goals', []);
   const [budgets, setBudgets] = useLocalStorage('fin_budgets', []);
@@ -33,6 +36,7 @@ export const FinancialProvider = ({ children }) => {
   const availableThemes = ['#3b82f6', '#8b5cf6', '#10b981', '#f43f5e', '#f59e0b', '#06b6d4'];
 
   // --- FILTROS Y SALDOS ---
+  const [isAllExpanded, setIsAllExpanded] = useState(true); // Expansiva
   const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
   const [dateFilter, setDateFilter] = useState({ mode: 'month', value: getCurrentMonth(), from: '', to: '' });
   const [selectedWalletId, setSelectedWalletId] = useState(null);
@@ -123,59 +127,91 @@ export const FinancialProvider = ({ children }) => {
   };
 
   // --- LÓGICA DE PROYECCIÓN BALANCE ---
-  const calculateProjection = (months, manualWeeklyIncome = 0) => {
-      const days = months * 30;
-      const dataPoints = [];
-      let currentSimulatedBalance = totalBalance;
-      let currentDate = new Date();
-      
-      const dailyBudgetBurn = budgets.reduce((acc, b) => acc + Number(b.limit), 0) / 30; 
-      const dailyManualIncome = Number(manualWeeklyIncome) > 0 ? Number(manualWeeklyIncome) / 7 : 0;
-      const fullTimeJobs = companies.filter(c => c.type === 'full-time' && c.schedule);
 
-      const step = months > 12 ? 7 : 1; 
+    const [events, setEvents] = useState(() => {
+    const saved = localStorage.getItem('finplan_events');
+    return saved ? JSON.parse(saved) : [];
+  });
 
-      for (let i = 0; i <= days; i += step) {
-          const dateStr = currentDate.toISOString().split('T')[0];
-          const dayOfMonth = currentDate.getDate();
-          const dayOfWeek = currentDate.getDay(); 
+  useEffect(() => { localStorage.setItem('finplan_events', JSON.stringify(events)); }, [events]);
 
-          let subsCost = 0;
-          if (step === 1) {
-             subscriptions.forEach(sub => { if (sub.day === dayOfMonth) subsCost += Number(sub.price); });
-          } else {
-             subscriptions.forEach(sub => { subsCost += (Number(sub.price) * 12) / 365 * step; }); 
+  const addEvent = (event) => setEvents([...events, { ...event, id: Date.now().toString() }]);
+  
+  const updateEvent = (updatedEvent) => {
+    setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+  };
+
+  const deleteEvent = (id) => setEvents(events.filter(e => e.id !== id));
+
+
+  const calculateProjection = (months = 6, extraWeeklyIncome = 0) => {
+    const today = new Date();
+    const endDate = new Date();
+    endDate.setMonth(today.getMonth() + months);
+    
+    // 1. BALANCE INICIAL (Validamos que sea número)
+    let currentBalance = wallets.reduce((acc, w) => acc + (Number(w.balance) || 0), 0);
+    
+    // 2. GASTO DIARIO PROMEDIO (Presupuestos)
+    // NOTA: Usamos 'limit' porque así lo guardas en App.jsx
+    const totalBudgets = budgets.reduce((acc, b) => acc + (Number(b.limit) || 0), 0);
+    const dailyBudgetBurn = totalBudgets > 0 ? totalBudgets / 30 : 0;
+    
+    const projection = [];
+    let currentDate = new Date(today);
+
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dayOfMonth = currentDate.getDate();
+      const dayOfWeek = currentDate.getDay(); // 0 Dom - 6 Sab
+
+      // A. Restar Gasto Diario Promedio (Presupuestos)
+      currentBalance -= dailyBudgetBurn;
+
+      // B. Sumar Ingreso Extra Manual (Diario = Semanal / 7)
+      currentBalance += ((Number(extraWeeklyIncome) || 0) / 7);
+
+      // C. Sumar Sueldos (Solo empresas Full-Time)
+      companies.filter(c => c.type === 'full-time').forEach(comp => {
+         // Lógica: Si es Lunes(1) a Viernes(5), sumamos 8 horas de trabajo
+         if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+             const hourlyRate = Number(comp.rate) || 0;
+             const dailyPay = hourlyRate * 8; 
+             currentBalance += dailyPay;
+         }
+      });
+
+      // D. Restar Suscripciones (Día exacto)
+      subscriptions.forEach(sub => {
+          // NOTA: Usamos 'day' y 'price' según tu App.jsx
+          const paymentDay = Number(sub.day) || 1;
+          if (dayOfMonth === paymentDay) {
+              currentBalance -= (Number(sub.price) || 0);
           }
+      });
 
-          const budgetCost = dailyBudgetBurn * step;
-          let totalIncome = dailyManualIncome * step;
-          
-          if (step === 1) {
-              fullTimeJobs.forEach(job => {
-                  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-                  const key = dayKeys[dayOfWeek];
-                  const hours = job.schedule[key] || 0;
-                  if (hours > 0) totalIncome += hours * Number(job.rate);
-              });
-          } else {
-              fullTimeJobs.forEach(job => {
-                  const weeklyHours = Object.values(job.schedule).reduce((a, b) => a + Number(b), 0);
-                  const weeklyPay = weeklyHours * Number(job.rate);
-                  totalIncome += (weeklyPay / 7) * step;
-              });
-          }
-
-          currentSimulatedBalance = currentSimulatedBalance - subsCost - budgetCost + totalIncome;
-
-          dataPoints.push({
-              date: dateStr,
-              balance: Math.round(currentSimulatedBalance),
-              originalDate: new Date(currentDate)
+      // E. RESTAR EVENTOS/VIAJES (Día exacto)
+      if (events && Array.isArray(events)) {
+          const daysEvents = events.filter(e => e.date === dateStr);
+          daysEvents.forEach(evt => {
+              if (evt.items && Array.isArray(evt.items)) {
+                  const totalEventCost = evt.items.reduce((sum, item) => {
+                      const cost = Number(item.cost);
+                      return sum + (isNaN(cost) ? 0 : cost);
+                  }, 0);
+                  currentBalance -= totalEventCost;
+              }
           });
-
-          currentDate.setDate(currentDate.getDate() + step);
       }
-      return dataPoints;
+
+      projection.push({
+        date: dateStr,
+        balance: Math.round(currentBalance)
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    return projection;
   };
 
   // --- CRUD GESTIÓN ---
@@ -287,8 +323,11 @@ export const FinancialProvider = ({ children }) => {
     addWorkLog, updateWorkLog, deleteWorkLog, markWorkAsPaid, unmarkWorkAsPaid, // <--- NUEVA
     addCompany, updateCompany, deleteCompany,
     darkMode, setDarkMode, themeColor, setThemeColor, availableThemes, privacyMode, setPrivacyMode,
-    addTransaction, deleteTransaction, updateTransaction
+    addTransaction, deleteTransaction, updateTransaction, isAllExpanded, setIsAllExpanded, events, addEvent, updateEvent, deleteEvent,
+    useSemanticColors, setUseSemanticColors
   };
+
+
 
   return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;
 };
