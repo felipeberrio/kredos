@@ -42,7 +42,13 @@ export const FinancialCharts = ({ onOpenProjection }) => {
     const timeline = Array.from(allDates).sort().map(date => {
         const dayExpenses = chartExpenses.filter(e => e.date === date).reduce((sum, e) => sum + Number(e.amount), 0);
         const dayIncomes = chartIncomes.filter(i => i.date === date).reduce((sum, i) => sum + Number(i.amount), 0);
-        return { date, dayName: new Date(date).getDate(), expense: dayExpenses, income: dayIncomes, net: dayIncomes - dayExpenses };
+        
+        // --- CORRECCIÓN 1: Obtener el día cortando el texto para evitar error de zona horaria ---
+        // Antes: new Date(date).getDate() -> Restaba 1 día
+        // Ahora: date.split('-')[2] -> Toma el número exacto del string "YYYY-MM-DD"
+        const dayName = parseInt(date.split('-')[2]);
+
+        return { date, dayName, expense: dayExpenses, income: dayIncomes, net: dayIncomes - dayExpenses };
     });
     let accumulator = 0;
     return timeline.map(day => { accumulator += day.net; return { ...day, balance: accumulator }; });
@@ -133,9 +139,29 @@ export const FinancialCharts = ({ onOpenProjection }) => {
             <AreaChart data={projectionData} margin={{ top: 30, right: 10, bottom: 0, left: -20 }}>
               <defs><linearGradient id="projSimGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={themeColor} stopOpacity={0.4}/><stop offset="95%" stopColor={themeColor} stopOpacity={0}/></linearGradient></defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
-              <XAxis dataKey="date" tickFormatter={(d) => new Date(d).getDate()} tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
+              
+              {/* --- CORRECCIÓN 2: XAxis usando split para no restar 1 día --- */}
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={(d) => parseInt(d.split('-')[2])} // Corta "YYYY-MM-DD" y toma el DD
+                tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                tickLine={false} 
+                axisLine={false} 
+              />
+              
               <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
-              <Tooltip labelFormatter={(d) => new Date(d).toLocaleDateString()} formatter={(value) => [formatCurrency(value), 'Estimado']} contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', color: darkMode ? '#fff' : '#0f172a', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+              
+              {/* --- CORRECCIÓN 3: Tooltip construyendo fecha segura --- */}
+              <Tooltip 
+                labelFormatter={(d) => {
+                    if (!d) return '';
+                    const [y, m, day] = d.split('-');
+                    return new Date(y, m-1, day).toLocaleDateString();
+                }} 
+                formatter={(value) => [formatCurrency(value), 'Estimado']} 
+                contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', color: darkMode ? '#fff' : '#0f172a', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+              />
+              
               <Area type="monotone" dataKey="balance" stroke={themeColor} strokeWidth={3} fill="url(#projSimGrad)" />
             </AreaChart>
           </ResponsiveContainer>

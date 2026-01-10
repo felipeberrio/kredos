@@ -11,14 +11,14 @@ export const FinancialProvider = ({ children }) => {
     { id: 'w1', name: 'Efectivo', type: 'cash', balance: 0 },
     { id: 'w2', name: 'Banco', type: 'bank', balance: 0 }
   ]);
-// 1. Nuevo estado para activar/desactivar Rojo y Verde en botones
+  // 1. Nuevo estado para activar/desactivar Rojo y Verde en botones
   const [useSemanticColors, setUseSemanticColors] = useLocalStorage('fin_semantic_mode', true);
 
   const [subscriptions, setSubscriptions] = useLocalStorage('fin_subscriptions', []);
   const [goals, setGoals] = useLocalStorage('fin_goals', []);
   const [budgets, setBudgets] = useLocalStorage('fin_budgets', []);
   const [workLogs, setWorkLogs] = useLocalStorage('fin_work_logs', []);
-  const [companies, setCompanies] = useLocalStorage('fin_companies', []); // <--- EMPRESAS
+  const [companies, setCompanies] = useLocalStorage('fin_companies', []); 
   
   // CATEGORÍAS
   const [categories, setCategories] = useLocalStorage('fin_categories', [
@@ -36,7 +36,7 @@ export const FinancialProvider = ({ children }) => {
   const availableThemes = ['#3b82f6', '#8b5cf6', '#10b981', '#f43f5e', '#f59e0b', '#06b6d4'];
 
   // --- FILTROS Y SALDOS ---
-  const [isAllExpanded, setIsAllExpanded] = useState(true); // Expansiva
+  const [isAllExpanded, setIsAllExpanded] = useState(true); 
   const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
   const [dateFilter, setDateFilter] = useState({ mode: 'month', value: getCurrentMonth(), from: '', to: '' });
   const [selectedWalletId, setSelectedWalletId] = useState(null);
@@ -88,17 +88,15 @@ export const FinancialProvider = ({ children }) => {
       .reduce((acc, curr) => acc + Number(curr.amount), 0);
   };
 
-  // --- LÓGICA DE PROYECCIÓN DE PAGO (NUEVA) ---
+  // --- LÓGICA DE PROYECCIÓN DE PAGO ---
   const calculatePayDate = (workDateStr, company) => {
       if (!company || !workDateStr) return workDateStr;
       
       const workDate = new Date(workDateStr);
-      // Ajustar zona horaria local para evitar errores de día
       const workDateLocal = new Date(workDate.getTime() + workDate.getTimezoneOffset() * 60000);
       
       if (company.frequency === 'immediate') return workDateStr;
 
-      // Si tenemos una fecha de referencia (ej: un viernes que sabemos que pagaron)
       if (company.payDayAnchor) {
           const anchor = new Date(company.payDayAnchor);
           const anchorLocal = new Date(anchor.getTime() + anchor.getTimezoneOffset() * 60000);
@@ -106,14 +104,9 @@ export const FinancialProvider = ({ children }) => {
           const diffTime = workDateLocal - anchorLocal;
           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           
-          let cycleDays = 7; // Weekly default
+          let cycleDays = 7; 
           if (company.frequency === 'biweekly') cycleDays = 14;
-          if (company.frequency === 'monthly') cycleDays = 30; // Aproximado
-
-          // Calcular cuántos ciclos han pasado o faltan
-          // Buscamos el próximo ciclo que cierre DESPUÉS del día de trabajo
-          // Nota: Esto es una simplificación, asume que pagan al final del ciclo
-          // Para mayor precisión se necesitaría "Días de desfase", pero esto sirve para proyectar.
+          if (company.frequency === 'monthly') cycleDays = 30; 
           
           let daysUntilNextPay = cycleDays - (diffDays % cycleDays);
           if (daysUntilNextPay < 0) daysUntilNextPay += cycleDays;
@@ -123,12 +116,11 @@ export const FinancialProvider = ({ children }) => {
           return nextPay.toISOString().split('T')[0];
       }
       
-      return workDateStr; // Fallback
+      return workDateStr; 
   };
 
-  // --- LÓGICA DE PROYECCIÓN BALANCE ---
-
-    const [events, setEvents] = useState(() => {
+  // --- EVENTOS ---
+  const [events, setEvents] = useState(() => {
     const saved = localStorage.getItem('finplan_events');
     return saved ? JSON.parse(saved) : [];
   });
@@ -136,82 +128,207 @@ export const FinancialProvider = ({ children }) => {
   useEffect(() => { localStorage.setItem('finplan_events', JSON.stringify(events)); }, [events]);
 
   const addEvent = (event) => setEvents([...events, { ...event, id: Date.now().toString() }]);
-  
   const updateEvent = (updatedEvent) => {
     setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
-
   const deleteEvent = (id) => setEvents(events.filter(e => e.id !== id));
 
 
+  // --- PROYECCIÓN FINANCIERA (CON LOGS DE AUDITORÍA Y FRECUENCIA REAL) ---
   const calculateProjection = (months = 6, extraWeeklyIncome = 0) => {
     const today = new Date();
-    const endDate = new Date();
+    // Normalizamos 'today' a medianoche para evitar problemas de horas
+    today.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(today);
     endDate.setMonth(today.getMonth() + months);
     
-    // 1. BALANCE INICIAL (Validamos que sea número)
+    // 1. BALANCE INICIAL
     let currentBalance = wallets.reduce((acc, w) => acc + (Number(w.balance) || 0), 0);
     
-    // 2. GASTO DIARIO PROMEDIO (Presupuestos)
-    // NOTA: Usamos 'limit' porque así lo guardas en App.jsx
+    // 2. GASTO DIARIO PROMEDIO (PRESUPUESTOS)
     const totalBudgets = budgets.reduce((acc, b) => acc + (Number(b.limit) || 0), 0);
     const dailyBudgetBurn = totalBudgets > 0 ? totalBudgets / 30 : 0;
     
+    const virtualGoalsProgress = goals.reduce((acc, g) => ({ ...acc, [g.id]: Number(g.saved) || 0 }), {});
+
     const projection = [];
     let currentDate = new Date(today);
+    
+    // CONTADOR PARA SEMANAS
+    let daysCounter = 0; 
 
     while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const dateStr = currentDate.toISOString().split('T')[0];
       const dayOfMonth = currentDate.getDate();
-      const dayOfWeek = currentDate.getDay(); // 0 Dom - 6 Sab
+      const dayOfWeek = currentDate.getDay(); 
+      const dayLogs = []; // Array para guardar qué pasó este día
 
-      // A. Restar Gasto Diario Promedio (Presupuestos)
-      currentBalance -= dailyBudgetBurn;
+      // A. RESTAR GASTO DIARIO (PRESUPUESTO) - ¡AHORA SE MUESTRA!
+      if (dailyBudgetBurn > 0) {
+          currentBalance -= dailyBudgetBurn;
+          
+          // --- AQUÍ ESTÁ LO QUE PEDISTE ---
+          // Guardamos este dato con tipo 'daily'. 
+          // La gráfica lo usará para mostrar la tarjeta de "Pendiente Diaria".
+          dayLogs.push({ 
+              type: 'daily', 
+              name: 'Consumo Presupuesto Diario', 
+              amount: -dailyBudgetBurn 
+          });
+      }
 
-      // B. Sumar Ingreso Extra Manual (Diario = Semanal / 7)
-      currentBalance += ((Number(extraWeeklyIncome) || 0) / 7);
+      // B. SUMAR INGRESO EXTRA SEMANAL (Cada 7 días)
+      if (Number(extraWeeklyIncome) > 0 && daysCounter % 7 === 0) {
+          const amount = Number(extraWeeklyIncome);
+          currentBalance += amount;
+          dayLogs.push({ type: 'income', name: 'Ingreso Extra Semanal', amount }); 
+      }
 
-      // C. Sumar Sueldos (Solo empresas Full-Time)
+      // C. SALARIOS FULL-TIME (POR FRECUENCIA CONFIGURADA)
       companies.filter(c => c.type === 'full-time').forEach(comp => {
-         // Lógica: Si es Lunes(1) a Viernes(5), sumamos 8 horas de trabajo
-         if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-             const hourlyRate = Number(comp.rate) || 0;
-             const dailyPay = hourlyRate * 8; 
-             currentBalance += dailyPay;
+         // Si la empresa no tiene fecha de pago configurada, no podemos calcular
+         if (!comp.payDayAnchor) return; 
+
+         const rate = Number(comp.rate) || 0;
+         const frequency = comp.frequency || 'weekly'; 
+         
+         // Fechas seguras
+         const anchorDate = new Date(comp.payDayAnchor + 'T00:00:00');
+         const simDate = new Date(dateStr + 'T00:00:00');
+         
+         // Días desde el primer pago
+         const diffTime = simDate.getTime() - anchorDate.getTime();
+         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+         if (diffDays >= 0) {
+             let isPayDay = false;
+             let hoursToPay = 0;
+
+             if (frequency === 'weekly') {
+                 if (diffDays % 7 === 0) { isPayDay = true; hoursToPay = 40; } // 40h Semanal
+             } else if (frequency === 'biweekly') {
+                 if (diffDays % 14 === 0) { isPayDay = true; hoursToPay = 80; } // 80h Quincenal
+             } else if (frequency === 'monthly') {
+                 if (simDate.getDate() === anchorDate.getDate()) { isPayDay = true; hoursToPay = 160; } // 160h Mensual
+             }
+
+             if (isPayDay) {
+                 const payAmount = rate * hoursToPay;
+                 currentBalance += payAmount;
+                 // Guardamos el log para que salga en la lista
+                 dayLogs.push({ type: 'income', name: `Nómina ${comp.name}`, amount: payAmount });
+             }
          }
       });
 
-      // D. Restar Suscripciones (Día exacto)
+      // D. TRABAJOS AGENDADOS (Work Logs)
+      const paymentsToday = workLogs.filter(log => log.paymentDate === dateStr && log.status !== 'paid');
+      paymentsToday.forEach(log => {
+          const amount = Number(log.total);
+          currentBalance += amount;
+          dayLogs.push({ type: 'income', name: `Pago Turno: ${log.companyName}`, amount });
+      });
+
+      // E. SUSCRIPCIONES
       subscriptions.forEach(sub => {
-          // NOTA: Usamos 'day' y 'price' según tu App.jsx
           const paymentDay = Number(sub.day) || 1;
           if (dayOfMonth === paymentDay) {
-              currentBalance -= (Number(sub.price) || 0);
+              const amount = Number(sub.price) || 0;
+              currentBalance -= amount;
+              dayLogs.push({ type: 'expense', name: `Suscripción: ${sub.name}`, amount: -amount });
           }
       });
 
-      // E. RESTAR EVENTOS/VIAJES (Día exacto)
+      // F. EVENTOS
       if (events && Array.isArray(events)) {
           const daysEvents = events.filter(e => e.date === dateStr);
           daysEvents.forEach(evt => {
               if (evt.items && Array.isArray(evt.items)) {
-                  const totalEventCost = evt.items.reduce((sum, item) => {
-                      const cost = Number(item.cost);
-                      return sum + (isNaN(cost) ? 0 : cost);
-                  }, 0);
-                  currentBalance -= totalEventCost;
+                  const totalEventCost = evt.items
+                    .filter(item => !item.checked) 
+                    .reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
+                  
+                  if (totalEventCost > 0) {
+                      currentBalance -= totalEventCost;
+                      dayLogs.push({ type: 'event', name: `Evento: ${evt.name}`, amount: -totalEventCost });
+                  }
               }
           });
       }
 
+      // G. METAS DE AHORRO
+      goals.forEach(goal => {
+          const target = Number(goal.target) || 0;
+          const installment = Number(goal.installment) || 0;
+          const currentSaved = virtualGoalsProgress[goal.id];
+
+          if (installment > 0 && currentSaved < target) {
+              let shouldSave = false;
+              const gStart = new Date(goal.startDate || dateStr);
+              const gStartLocal = new Date(gStart.getTime() + gStart.getTimezoneOffset() * 60000);
+
+              if (goal.frequency === 'once' && goal.deadline === dateStr) shouldSave = true;
+              else if (goal.frequency === 'monthly' && dayOfMonth === gStartLocal.getDate()) shouldSave = true;
+              else if (goal.frequency === 'weekly' && dayOfWeek === gStartLocal.getDay()) shouldSave = true;
+              else if (goal.frequency === 'biweekly') {
+                  const diffTime = currentDate.getTime() - gStartLocal.getTime();
+                  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                  if (diffDays >= 0 && diffDays % 14 === 0) shouldSave = true;
+              }
+
+              if (shouldSave) {
+                  currentBalance -= installment;
+                  virtualGoalsProgress[goal.id] += installment;
+                  dayLogs.push({ type: 'goal', name: `Ahorro Meta: ${goal.name}`, amount: -installment });
+              }
+          }
+      });
+
       projection.push({
         date: dateStr,
-        balance: Math.round(currentBalance)
+        balance: Math.round(currentBalance),
+        logs: dayLogs // <--- AQUÍ VA TODA LA INFORMACIÓN PARA LA TABLA
       });
 
       currentDate.setDate(currentDate.getDate() + 1);
+      daysCounter++;
     }
     return projection;
+  };
+  // --- NUEVA FUNCIÓN AUXILIAR PARA CALCULAR ESTADO DE META ---
+  const getGoalDetails = (goal) => {
+      const target = Number(goal.target) || 0;
+      const saved = Number(goal.saved) || 0;
+      const installment = Number(goal.installment) || 0;
+      const remaining = target - saved;
+      
+      if (remaining <= 0) return { status: 'completed', text: '¡Meta Completada!', percent: 100 };
+      if (!installment || installment <= 0) return { status: 'no_plan', text: 'Sin plan de ahorro', percent: (saved/target)*100 };
+
+      // Calcular fecha estimada de finalización
+      let installmentsLeft = Math.ceil(remaining / installment);
+      let daysPerInstallment = 30; // Default monthly
+      if (goal.frequency === 'weekly') daysPerInstallment = 7;
+      if (goal.frequency === 'biweekly') daysPerInstallment = 14;
+      if (goal.frequency === 'once') daysPerInstallment = 0; // Especial
+
+      const daysLeft = installmentsLeft * daysPerInstallment;
+      const today = new Date();
+      const estimatedDate = new Date(today);
+      estimatedDate.setDate(today.getDate() + daysLeft);
+
+      // Calcular próxima fecha de pago
+      // (Simplificado para UI: asume próxima fecha lógica basada en startDate)
+      let nextPaymentDate = new Date(); // Aquí iría lógica más compleja si se requiere exactitud
+
+      return {
+          status: 'active',
+          daysLeft,
+          estimatedDate: goal.frequency === 'once' ? new Date(goal.deadline) : estimatedDate,
+          installmentsLeft,
+          percent: Math.min((saved/target)*100, 100)
+      };
   };
 
   // --- CRUD GESTIÓN ---
@@ -265,10 +382,7 @@ export const FinancialProvider = ({ children }) => {
       updateWorkLog({ ...workLog, status: 'paid', paidDate: newIncome.date });
   };
 
-  // Función para revertir cobro (volver a pendiente)
   const unmarkWorkAsPaid = (workLog) => {
-      // Nota: Esto NO borra el ingreso creado automáticamente para evitar desbalancear si el usuario ya gastó ese dinero
-      // Solo cambia el estado visual en el calendario.
       updateWorkLog({ ...workLog, status: 'pending', paidDate: '' });
   };
 
@@ -317,17 +431,15 @@ export const FinancialProvider = ({ children }) => {
     dateFilter, setDateFilter, selectedWalletId, setSelectedWalletId, selectedCategory, setSelectedCategory,
     displayBalance, totalBalance,
     setGoals, setSubscriptions, setCategories, setIncomeCategories, setBudgets, setWallets, setWorkLogs, setCompanies,
-    addCategory, updateCategory, deleteCategory, getBudgetProgress, calculateProjection, calculatePayDate, // <--- EXPORTADO
+    addCategory, updateCategory, deleteCategory, getBudgetProgress, calculateProjection, calculatePayDate, getGoalDetails, // <--- EXPORTADO
     deleteBudget, deleteWallet, deleteGoal, deleteSubscription,
     updateWallet, updateGoal, updateSubscription, updateBudget,
-    addWorkLog, updateWorkLog, deleteWorkLog, markWorkAsPaid, unmarkWorkAsPaid, // <--- NUEVA
+    addWorkLog, updateWorkLog, deleteWorkLog, markWorkAsPaid, unmarkWorkAsPaid, 
     addCompany, updateCompany, deleteCompany,
     darkMode, setDarkMode, themeColor, setThemeColor, availableThemes, privacyMode, setPrivacyMode,
     addTransaction, deleteTransaction, updateTransaction, isAllExpanded, setIsAllExpanded, events, addEvent, updateEvent, deleteEvent,
     useSemanticColors, setUseSemanticColors
   };
-
-
 
   return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;
 };

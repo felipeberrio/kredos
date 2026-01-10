@@ -1,32 +1,66 @@
-import React, { useState, useEffect ,useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 import { ArrowUpCircle, ArrowDownCircle, Trash2, Edit3, Tag, Filter, ArrowUpDown, Wallet, RefreshCw, ChevronUp, ChevronDown, Minus, Maximize2, History } from 'lucide-react';
 
 export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
-  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, dateFilter, themeColor, darkMode,isAllExpanded } = useFinancial();
+  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, dateFilter, themeColor, darkMode, isAllExpanded } = useFinancial();
   
   // Estados de UI
   const [isExpanded, setIsExpanded] = useState(true);
   useEffect(() => {
     setIsExpanded(isAllExpanded);
-}, [isAllExpanded]);
+  }, [isAllExpanded]);
+
   // Estados de Filtro Local
   const [localWallet, setLocalWallet] = useState('all');
   const [localCategory, setLocalCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
 
+  // --- LÓGICA MEJORADA CON SALDO HISTÓRICO ---
   const processedTransactions = useMemo(() => {
-    let data = [
+    // 1. Unificar todas las transacciones
+    let allTransactions = [
       ...filteredIncomes.map(i => ({ ...i, type: 'income' })),
       ...filteredExpenses.map(e => ({ ...e, type: 'expense' }))
     ];
 
-    if (localWallet !== 'all') data = data.filter(t => t.walletId === localWallet);
-    if (localCategory !== 'all') data = data.filter(t => (t.category || 'Otros') === localCategory);
+    // 2. Ordenar cronológicamente (más antiguo primero) para calcular el saldo progresivo
+    allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    data.sort((a, b) => {
+    // 3. Calcular saldo acumulado (Running Balance)
+    // Nota: Esto asume un saldo inicial de 0. Si quisieras ser ultra-preciso,
+    // necesitarías saber el saldo inicial de la cuenta antes de la primera transacción registrada.
+    // Para simplificar y ser útil visualmente, calculamos el flujo neto desde el inicio de los tiempos.
+    let runningBalance = 0;
+    const transactionsWithBalance = allTransactions.map(t => {
+        if (t.type === 'income') runningBalance += Number(t.amount);
+        else runningBalance -= Number(t.amount);
+        return { ...t, balanceAfter: runningBalance };
+    });
+
+    // 4. Aplicar Filtros Locales (Wallet / Categoría)
+    let filteredData = transactionsWithBalance;
+    
+    if (localWallet !== 'all') {
+        // Si filtramos por cuenta, recalculamos el saldo solo para esa cuenta
+        let walletBalance = 0;
+        // Re-filtramos desde la base original para tener el historial correcto de ESA cuenta
+        const walletTrans = allTransactions.filter(t => t.walletId === localWallet);
+        filteredData = walletTrans.map(t => {
+            if (t.type === 'income') walletBalance += Number(t.amount);
+            else walletBalance -= Number(t.amount);
+            return { ...t, balanceAfter: walletBalance };
+        });
+    }
+
+    if (localCategory !== 'all') {
+        filteredData = filteredData.filter(t => (t.category || 'Otros') === localCategory);
+    }
+
+    // 5. Aplicar Ordenamiento Final (para visualización)
+    filteredData.sort((a, b) => {
       switch (sortOrder) {
         case 'oldest': return new Date(a.date) - new Date(b.date);
         case 'highest': return b.amount - a.amount;
@@ -35,7 +69,7 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
       }
     });
 
-    return data;
+    return filteredData;
   }, [filteredIncomes, filteredExpenses, localWallet, localCategory, sortOrder]);
 
   const selectStyle = {
@@ -144,9 +178,15 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                         </div>
                         
                         <div className="flex items-center gap-4">
-                            <span className={`font-black text-sm ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
-                            </span>
+                            <div className="text-right">
+                                <span className={`font-black text-sm block ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
+                                </span>
+                                {/* AQUI ESTA EL CAMBIO: SALDO RESULTANTE */}
+                                <span className="block text-[10px] text-slate-400 font-medium mt-0.5 opacity-60">
+                                    {formatCurrency(t.balanceAfter)}
+                                </span>
+                            </div>
                             
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => onEdit(t)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all"><Edit3 size={16}/></button>

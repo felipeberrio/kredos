@@ -1,29 +1,64 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, Plus, ChevronUp, ChevronDown, Minus, Maximize2, CheckCircle2, Clock, MapPin, Edit3, Trash2, Building2, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, Minimize2, ArrowUpDown, TrendingUp, CalendarDays, X, Wallet, Copy, Banknote, AlertCircle } from 'lucide-react';
+import { Briefcase, Plus, ChevronUp, ChevronDown, Minus, Maximize2, CheckCircle2, Clock, MapPin, Edit3, Trash2, Building2, Calendar as CalendarIcon, List, ChevronLeft, ChevronRight, Minimize2, TrendingUp, CalendarDays, X, Wallet, Copy, Banknote, Hourglass } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
 export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit, onAddCompany, onEditCompany }) => {
-  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany,isAllExpanded } = useFinancial();
+  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+  
   useEffect(() => {
     setIsExpanded(isAllExpanded);
-}, [isAllExpanded]);
+  }, [isAllExpanded]);
+
   const [isMaximized, setIsMaximized] = useState(false);
   
   // --- ESTADOS ---
   const [activeTab, setActiveTab] = useState('logs');
-  const [viewType, setViewType] = useState('calendar');
+  const [viewType, setViewType] = useState('list'); // Default a lista para ver mejor los detalles
   const [calScope, setCalScope] = useState('month'); 
   const [listSort, setListSort] = useState('date-desc');
   const [payingLogId, setPayingLogId] = useState(null); 
 
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // --- 1. FUNCIÓN PARA CORREGIR EL ERROR DE FECHA (ZONA HORARIA) ---
+  const formatDateSafe = (dateStr) => {
+      if (!dateStr) return { dayName: '', dayNum: '', fullDate: new Date() };
+      // "2026-01-12" -> [2026, 1, 12]
+      const [year, month, day] = dateStr.split('-').map(Number);
+      // Creamos la fecha localmente (Mes es index 0 en JS, por eso month - 1)
+      const localDate = new Date(year, month - 1, day);
+      
+      const dayName = localDate.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase();
+      const dayNum = localDate.getDate();
+      
+      return { dayName, dayNum, fullDate: localDate };
+  };
   
-  // --- DATOS GENERALES ---
-  const pendingLogs = workLogs.filter(log => log.status === 'pending');
-  const totalOwed = pendingLogs.reduce((acc, log) => acc + Number(log.total), 0);
+  // --- 2. CÁLCULOS DE ESTADO (REAL vs PROYECTADO) ---
+  const todayStr = new Date().toISOString().split('T')[0]; // Fecha hoy YYYY-MM-DD
+
+  // Filtramos solo los pendientes
+  const pendingLogs = useMemo(() => workLogs.filter(log => log.status === 'pending'), [workLogs]);
+
+  // Calculamos los totales separados
+  const totals = useMemo(() => {
+      let earned = 0;    // Ya trabajados (Real)
+      let projected = 0; // Futuros (Esperado)
+
+      pendingLogs.forEach(log => {
+          // Si la fecha es menor a hoy, ya se trabajó
+          if (log.workDate < todayStr) {
+              earned += Number(log.total);
+          } else {
+              projected += Number(log.total);
+          }
+      });
+
+      return { earned, projected, total: earned + projected };
+  }, [pendingLogs, todayStr]);
   
   const getCompanyDebt = (companyId) => pendingLogs.filter(log => log.companyId === companyId).reduce((acc, log) => acc + Number(log.total), 0);
   
@@ -49,7 +84,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
               };
           }
           groups[dateKey].total += Number(log.total);
-          groups[dateKey].count += 1; // Faltaba este contador
+          groups[dateKey].count += 1;
           groups[dateKey].logs.push(log);
           groups[dateKey].companies.add(log.companyName);
       });
@@ -88,7 +123,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
       return days;
   }, [currentDate, calScope]);
 
-  // --- CÁLCULO TOTALES (CORREGIDO) ---
+  // --- CÁLCULO TOTALES VISTA CALENDARIO ---
   const currentViewTotal = useMemo(() => {
       if (calScope === 'week') {
           const start = calendarDays[0]?.date;
@@ -173,16 +208,15 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
   const WorkContent = ({ isLarge }) => (
     <div className={`flex flex-col h-full ${isLarge ? 'p-6' : ''}`}>
         
-        {/* HEADER */}
+        {/* HEADER CON NUEVOS TOTALES DESGLOSADOS */}
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2 shrink-0">
-            {/* TABS (Estilo Limpio) */}
+            {/* TABS */}
             <div className={`flex p-1 rounded-xl shadow-inner ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
                 <button onClick={() => setActiveTab('logs')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'logs' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Turnos</button>
                 <button onClick={() => setActiveTab('payments')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'payments' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Pagos</button>
                 <button onClick={() => setActiveTab('companies')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'companies' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Empresas</button>
             </div>
 
-            {/* CAMBIO AQUÍ: Permitir controles en logs Y payments */}
             {(activeTab === 'logs' || activeTab === 'payments') && (
                 <div className="flex gap-2 items-center">
                     <div className={`flex p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
@@ -190,7 +224,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                         <button onClick={() => setViewType('list')} className={`p-1.5 rounded-lg transition-all ${viewType === 'list' ? (darkMode ? 'bg-slate-700 text-white' : 'bg-white text-slate-800 shadow') : 'text-slate-400'}`}><List size={14}/></button>
                     </div>
 
-                    {viewType === 'calendar' ? (
+                    {viewType === 'calendar' && (
                         <div className={`flex items-center gap-2 px-2 py-1 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-700'}`}>
                             <button onClick={() => changeDate(-1)} className="text-slate-400 hover:text-slate-600"><ChevronLeft size={14}/></button>
                             <span className="text-[10px] font-bold w-24 text-center capitalize truncate">{dateLabel}</span>
@@ -198,11 +232,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                             <div className="h-4 w-px bg-slate-300 dark:bg-slate-600 mx-1"></div>
                             <button onClick={() => setCalScope('week')} className={`text-[9px] font-bold uppercase ${calScope === 'week' ? 'text-blue-500' : 'text-slate-400'}`}>Sem</button>
                             <button onClick={() => setCalScope('month')} className={`text-[9px] font-bold uppercase ${calScope === 'month' ? 'text-blue-500' : 'text-slate-400'}`}>Mes</button>
-                        </div>
-                    ) : (
-                        // (El select de ordenamiento se mantiene igual o puedes ocultarlo si prefieres)
-                        <div className="relative">
-                             {/* ... código del select existente ... */}
                         </div>
                     )}
                 </div>
@@ -213,12 +242,11 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
             </button>
         </div>
 
-        {/* --- VISTA CALENDARIO (WHITE THEME FIXED) --- */}
+        {/* --- VISTA CALENDARIO --- */}
         {activeTab === 'logs' && viewType === 'calendar' && (
             <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-auto custom-scrollbar">
                     <div className="min-w-[600px] h-full flex flex-col"> 
-                        {/* Cabecera Días */}
                         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 pb-2 mb-2">
                             {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day, i) => (
                                 <div key={day} className="text-center">
@@ -227,7 +255,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                             ))}
                         </div>
 
-                        {/* Grilla Días (FONDO BLANCO PURO) */}
                         <div className={`grid grid-cols-7 gap-[1px] border rounded-2xl overflow-hidden ${darkMode ? 'bg-slate-700 border-slate-700' : 'bg-slate-200 border-slate-200'} ${calScope === 'month' ? 'auto-rows-fr' : ''} ${calScope === 'month' && isLarge ? 'h-full' : ''}`}>
                             {calendarDays.map((item, i) => {
                                 const dateKey = formatDateKey(item.date);
@@ -238,13 +265,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                     <div 
                                         key={i} 
                                         onClick={() => handleDateClick(dateKey)}
-                                        className={`
-                                            group/day relative flex flex-col p-1 transition-all cursor-pointer 
-                                            ${item.isCurrentMonth 
-                                                ? (darkMode ? 'bg-slate-900 hover:bg-slate-800' : 'bg-white hover:bg-slate-50') 
-                                                : (darkMode ? 'bg-slate-900/50 opacity-50' : 'bg-slate-50 opacity-60')} 
-                                            ${calScope === 'week' ? 'min-h-[140px]' : 'min-h-[90px]'}
-                                        `}
+                                        className={`group/day relative flex flex-col p-1 transition-all cursor-pointer ${item.isCurrentMonth ? (darkMode ? 'bg-slate-900 hover:bg-slate-800' : 'bg-white hover:bg-slate-50') : (darkMode ? 'bg-slate-900/50 opacity-50' : 'bg-slate-50 opacity-60')} ${calScope === 'week' ? 'min-h-[140px]' : 'min-h-[90px]'}`}
                                     >
                                         <div className="flex justify-between items-start mb-1 px-1 pt-1">
                                             <span className={`text-[10px] font-bold ${isCurrent ? 'bg-blue-500 text-white w-5 h-5 flex items-center justify-center rounded-full shadow-sm' : item.isCurrentMonth ? 'text-slate-700 dark:text-slate-300' : 'text-slate-300 dark:text-slate-600'}`}>{item.date.getDate()}</span>
@@ -252,7 +273,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleDateClick(dateKey); }}
                                                 className="opacity-0 group-hover/day:opacity-100 p-0.5 text-slate-400 hover:text-blue-500 transition-all"
-                                                title="Añadir"
                                             >
                                                 <Plus size={12}/>
                                             </button>
@@ -262,12 +282,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                             {daysLogs.map(log => (
                                                 <div 
                                                     key={log.id}
-                                                    className={`
-                                                        group relative p-1.5 rounded-md border text-[9px] cursor-pointer transition-all hover:z-20 hover:shadow-md
-                                                        ${log.status === 'paid' 
-                                                            ? (darkMode ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400 grayscale') 
-                                                            : (darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800 shadow-sm')}
-                                                    `}
+                                                    className={`group relative p-1.5 rounded-md border text-[9px] cursor-pointer transition-all hover:z-20 hover:shadow-md ${log.status === 'paid' ? (darkMode ? 'bg-slate-800 border-slate-700 text-slate-500' : 'bg-slate-100 border-slate-200 text-slate-400 grayscale') : (darkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800 shadow-sm')}`}
                                                     style={log.status === 'pending' ? { borderLeftWidth: '3px', borderLeftColor: themeColor } : { borderLeftWidth: '3px', borderLeftColor: '#cbd5e1' }}
                                                     onClick={(e) => { e.stopPropagation(); onEdit(log); }}
                                                 >
@@ -278,26 +293,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                                             <span className="font-bold">{formatCurrency(log.total)}</span>
                                                         </div>
                                                     )}
-                                                    
-                                                    {/* Hover Actions */}
-                                                    <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/95 dark:bg-slate-800/95 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity rounded-md backdrop-blur-[1px]">
-                                                        <button onClick={(e) => {e.stopPropagation(); handleCopyLog(log)}} className="text-slate-400 hover:text-blue-500 p-1 rounded" title="Duplicar"><Copy size={12}/></button>
-                                                        {log.status === 'pending' ? (
-                                                            payingLogId === log.id ? (
-                                                                <div className="absolute top-6 left-0 right-0 bg-white dark:bg-slate-900 shadow-xl border rounded p-1 z-50 animate-in zoom-in" onClick={(e) => e.stopPropagation()}>
-                                                                    <div className="flex justify-between mb-1"><span className="text-[7px] text-slate-400">Depositar:</span> <X size={8} onClick={() => setPayingLogId(null)}/></div>
-                                                                    <select className="w-full text-[8px] bg-transparent outline-none" onChange={(e) => handlePay(log, e.target.value)} autoFocus>
-                                                                        <option value="">Cuenta...</option>
-                                                                        {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                                                    </select>
-                                                                </div>
-                                                            ) : (
-                                                                <button onClick={(e) => {e.stopPropagation(); setPayingLogId(log.id)}} className="text-emerald-500 hover:text-emerald-700 p-1 hover:bg-emerald-50 rounded" title="Cobrar"><CheckCircle2 size={12}/></button>
-                                                            )
-                                                        ) : (
-                                                            <button onClick={(e) => {e.stopPropagation(); unmarkWorkAsPaid(log)}} className="text-slate-400 hover:text-rose-500 p-1 rounded" title="Desmarcar"><X size={12}/></button>
-                                                        )}
-                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -308,7 +303,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                     </div>
                 </div>
                 
-                {/* FOOTER TOTALES */}
                 <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
                     <span className="text-[10px] text-slate-400">Total {calScope === 'week' ? 'Semana' : 'Mes'} Actual:</span>
                     <span className="text-sm font-black text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-xl">
@@ -318,104 +312,129 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
             </div>
         )}
 
-        {/* --- VISTA LISTA --- */}
+        {/* --- VISTA LISTA (ACTUALIZADA CON LÓGICA DE ESTADO) --- */}
         {activeTab === 'logs' && viewType === 'list' && (
             <div className="flex flex-col h-full overflow-hidden">
                 <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 p-1">
-                    {sortedListLogs.map(log => (
-                        <div 
-                            key={log.id} 
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all group relative 
-                                ${log.status === 'paid' 
-                                    ? (darkMode ? 'bg-slate-800/50 border-slate-700 opacity-60' : 'bg-slate-50 border-slate-200 opacity-60') 
-                                    : (darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-750' : 'bg-white border-slate-200 hover:shadow-md')}
-                            `}
-                        >
-                            <div className="flex items-center gap-3">
-                                {/* Caja de Fecha */}
-                                <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-lg ${log.status === 'paid' ? (darkMode ? 'bg-slate-700 text-slate-500' : 'bg-slate-200 text-slate-400') : (darkMode ? 'bg-slate-700 text-blue-400' : 'bg-blue-50 text-blue-600')}`}>
-                                    <span className="text-[8px] uppercase font-bold">{new Date(log.workDate).toLocaleDateString(undefined, {weekday:'short'})}</span>
-                                    <span className="text-xs font-black">{new Date(log.workDate).getDate()}</span>
-                                </div>
-                                
-                                {/* Info Principal (AQUÍ ESTABA EL PROBLEMA DE COLOR) */}
-                                <div>
-                                    <p className={`text-xs font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                                        {log.companyName}
-                                    </p>
-                                    <div className={`flex gap-2 text-[9px] mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                                        <span className="flex items-center gap-1"><Clock size={8}/> {log.hours}h</span>
-                                        <span className="flex items-center gap-1"><MapPin size={8}/> {log.location || 'Remoto'}</span>
-                                    </div>
-                                </div>
-                            </div>
+                    {sortedListLogs.map(log => {
+                        // USO DE LA FUNCIÓN SEGURA PARA FECHAS
+                        const { dayName, dayNum } = formatDateSafe(log.workDate);
+                        // LÓGICA DE COMPLETADO VS PLANEADO
+                        const isCompleted = log.workDate < todayStr;
+                        const isTodayLog = log.workDate === todayStr;
+                        const isPaid = log.status === 'paid';
 
-                            {/* Lado Derecho: Precios y Botones */}
-                            <div className="text-right flex items-center gap-4">
-                                <div>
-                                    <span className={`block text-sm font-black ${log.status === 'paid' ? 'text-slate-400' : 'text-emerald-600'}`}>
-                                        {formatCurrency(log.total)}
-                                    </span>
-                                    <span className={`text-[8px] font-bold ${log.status === 'paid' ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                        {log.status === 'paid' ? 'PAGADO' : `Cobro: ${new Date(log.paymentDate).toLocaleDateString(undefined, {month:'short', day:'numeric'})}`}
-                                    </span>
-                                </div>
-                                
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => handleCopyLog(log)} className={`p-1.5 rounded hover:text-blue-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`} title="Duplicar"><Copy size={12}/></button>
-                                    <button onClick={() => onEdit(log)} className={`p-1.5 rounded hover:text-blue-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`}><Edit3 size={12}/></button>
-                                    <button onClick={() => deleteWorkLog(log.id)} className={`p-1.5 rounded hover:text-rose-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`}><Trash2 size={12}/></button>
+                        return (
+                            <div 
+                                key={log.id} 
+                                className={`flex items-center justify-between p-3 rounded-xl border transition-all group relative 
+                                    ${isPaid 
+                                        ? (darkMode ? 'bg-slate-800/50 border-slate-700 opacity-60' : 'bg-slate-50 border-slate-200 opacity-60') 
+                                        : (darkMode ? 'bg-slate-800 border-slate-700 hover:bg-slate-750' : 'bg-white border-slate-200 hover:shadow-md')}
+                                `}
+                                onClick={() => onEdit(log)}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {/* Caja de Fecha (Con color según estado) */}
+                                    <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-lg 
+                                        ${isPaid 
+                                            ? (darkMode ? 'bg-slate-700 text-slate-500' : 'bg-slate-200 text-slate-400') 
+                                            : (isCompleted 
+                                                ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                                : (isTodayLog ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-300'))
+                                        }`}>
+                                        <span className="text-[8px] uppercase font-bold">{dayName}</span>
+                                        <span className="text-xs font-black">{dayNum}</span>
+                                    </div>
                                     
-                                    {log.status === 'pending' ? (
-                                        <button onClick={() => setPayingLogId(log.id)} className={`p-1.5 rounded hover:brightness-90 ${darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><CheckCircle2 size={12}/></button>
-                                    ) : (
-                                        <button onClick={() => unmarkWorkAsPaid(log)} className={`p-1.5 rounded hover:brightness-90 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500'}`}><X size={12}/></button>
-                                    )}
-                                </div>
-                            </div>
+                                    {/* Info Principal */}
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <p className={`text-xs font-bold ${darkMode ? 'text-white' : 'text-slate-900'}`}>{log.companyName}</p>
+                                            
+                                            {/* Badge de Estado */}
+                                            {!isPaid && (
+                                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1
+                                                    ${isCompleted 
+                                                        ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' 
+                                                        : 'bg-slate-100 text-slate-500 dark:bg-slate-700'}
+                                                `}>
+                                                    {isCompleted ? <CheckCircle2 size={8}/> : <Hourglass size={8}/>}
+                                                    {isCompleted ? 'Por Cobrar' : 'Planeado'}
+                                                </span>
+                                            )}
+                                        </div>
 
-                            {/* Popup Depositar */}
-                            {payingLogId === log.id && (
-                                <div className={`absolute right-14 top-1/2 -translate-y-1/2 z-[100] shadow-2xl p-3 rounded-xl border w-48 animate-in fade-in zoom-in ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`} onClick={(e) => e.stopPropagation()}>
-                                    <div className={`flex justify-between items-center mb-2 pb-1 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                                        <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1"><Wallet size={10}/> Depositar en:</span>
-                                        <button onClick={() => setPayingLogId(null)} className="text-slate-400 hover:text-rose-500"><X size={10}/></button>
+                                        <div className={`flex gap-2 text-[9px] mt-0.5 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                                            <span className="flex items-center gap-1"><Clock size={8}/> {log.hours}h</span>
+                                            <span className="flex items-center gap-1"><MapPin size={8}/> {log.location || 'Remoto'}</span>
+                                        </div>
                                     </div>
-                                    <select className={`w-full text-[10px] p-2 rounded border outline-none cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`} onChange={(e) => handlePay(log, e.target.value)} autoFocus>
-                                        <option value="">Seleccionar cuenta...</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                                    </select>
                                 </div>
-                            )}
-                        </div>
-                    ))}
+
+                                {/* Lado Derecho: Precios y Botones */}
+                                <div className="text-right flex items-center gap-4">
+                                    <div>
+                                        <span className={`block text-sm font-black ${isPaid ? 'text-slate-400' : (isCompleted ? 'text-emerald-600' : 'text-slate-400')}`}>
+                                            {formatCurrency(log.total)}
+                                        </span>
+                                        <span className={`text-[8px] font-bold ${isPaid ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                            {/* Usamos formatDateSafe también para la fecha de cobro */}
+                                            {isPaid 
+                                                ? 'PAGADO' 
+                                                : `Cobro: ${formatDateSafe(log.paymentDate).dayNum} ${formatDateSafe(log.paymentDate).dayName}`
+                                            }
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e) => {e.stopPropagation(); handleCopyLog(log)}} className={`p-1.5 rounded hover:text-blue-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`} title="Duplicar"><Copy size={12}/></button>
+                                        <button onClick={(e) => {e.stopPropagation(); onEdit(log)}} className={`p-1.5 rounded hover:text-blue-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`}><Edit3 size={12}/></button>
+                                        <button onClick={(e) => {e.stopPropagation(); deleteWorkLog(log.id)}} className={`p-1.5 rounded hover:text-rose-500 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-600'}`}><Trash2 size={12}/></button>
+                                        
+                                        {/* Solo mostrar botón cobrar si ya se completó o está pagado */}
+                                        {log.status === 'pending' ? (
+                                            <button onClick={(e) => {e.stopPropagation(); setPayingLogId(log.id)}} className={`p-1.5 rounded hover:brightness-90 ${darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><CheckCircle2 size={12}/></button>
+                                        ) : (
+                                            <button onClick={(e) => {e.stopPropagation(); unmarkWorkAsPaid(log)}} className={`p-1.5 rounded hover:brightness-90 ${darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-200 text-slate-500'}`}><X size={12}/></button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Popup Depositar */}
+                                {payingLogId === log.id && (
+                                    <div className={`absolute right-14 top-1/2 -translate-y-1/2 z-[100] shadow-2xl p-3 rounded-xl border w-48 animate-in fade-in zoom-in ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`} onClick={(e) => e.stopPropagation()}>
+                                        <div className={`flex justify-between items-center mb-2 pb-1 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+                                            <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1"><Wallet size={10}/> Depositar en:</span>
+                                            <button onClick={() => setPayingLogId(null)} className="text-slate-400 hover:text-rose-500"><X size={10}/></button>
+                                        </div>
+                                        <select className={`w-full text-[10px] p-2 rounded border outline-none cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`} onChange={(e) => handlePay(log, e.target.value)} autoFocus>
+                                            <option value="">Seleccionar cuenta...</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                     {sortedListLogs.length === 0 && <p className="text-center text-slate-400 text-xs py-8 italic">No hay turnos registrados</p>}
-                </div>
-                
-                {/* Footer Total */}
-                <div className={`mt-2 pt-2 border-t flex justify-end items-center gap-2 shrink-0 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">Total Por Cobrar:</span>
-                    <span className={`text-sm font-black text-emerald-500 px-2 py-0.5 rounded-lg ${darkMode ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>{formatCurrency(totalOwed)}</span>
                 </div>
             </div>
         )}
         
-        {/* --- VISTA PAGOS: CALENDARIO --- */}
+        {/* --- VISTA PAGOS (CALENDARIO) --- */}
         {activeTab === 'payments' && viewType === 'calendar' && (
             <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-auto custom-scrollbar">
                     <div className="min-w-[600px] h-full flex flex-col"> 
-                        {/* Cabecera Días */}
                         <div className={`grid grid-cols-7 border-b pb-2 mb-2 ${darkMode ? 'border-slate-700' : 'border-slate-200'}`}>
                             {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day, i) => (
                                 <div key={day} className="text-center"><span className={`text-[9px] font-black uppercase tracking-wider ${isToday(calendarDays[i]?.date || new Date()) && calScope === 'week' ? 'text-blue-500' : 'text-slate-400'}`}>{day}</span></div>
                             ))}
                         </div>
 
-                        {/* Grilla Días */}
                         <div className={`grid grid-cols-7 gap-[1px] border rounded-2xl overflow-hidden ${darkMode ? 'bg-slate-700 border-slate-700' : 'bg-slate-200 border-slate-200'} ${calScope === 'month' ? 'auto-rows-fr' : ''} ${calScope === 'month' && isLarge ? 'h-full' : ''}`}>
                             {calendarDays.map((item, i) => {
                                 const dateKey = formatDateKey(item.date);
-                                // Buscar pagos para este día específico
                                 const dayPayments = upcomingPayments.filter(p => p.date === dateKey);
                                 const isCurrent = isToday(item.date);
 
@@ -432,18 +451,14 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                             {dayPayments.map(payment => (
                                                 <div 
                                                     key={payment.id}
-                                                    className={`
-                                                        relative p-2 rounded-lg border text-[9px] transition-all hover:scale-[1.02] hover:z-20 hover:shadow-md cursor-pointer
-                                                        ${darkMode ? 'bg-emerald-900/20 border-emerald-800/50 text-emerald-100' : 'bg-emerald-50 border-emerald-200 text-slate-700'}
-                                                    `}
-                                                    onClick={() => setPayingLogId(payment.id)} // Clic para abrir menú cobro
+                                                    className={`relative p-2 rounded-lg border text-[9px] transition-all hover:scale-[1.02] hover:z-20 hover:shadow-md cursor-pointer ${darkMode ? 'bg-emerald-900/20 border-emerald-800/50 text-emerald-100' : 'bg-emerald-50 border-emerald-200 text-slate-700'}`}
+                                                    onClick={() => setPayingLogId(payment.id)} 
                                                 >
                                                     <div className="flex justify-between font-bold truncate items-center">
                                                         <span className="truncate flex-1">{payment.companies.size > 1 ? 'Varios' : [...payment.companies][0]}</span>
                                                         <span className={`font-black ml-1 ${darkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatCurrency(payment.total)}</span>
                                                     </div>
                                                     
-                                                    {/* POPUP DE COBRO (FLOTANTE SOBRE LA TARJETA) */}
                                                     {payingLogId === payment.id && (
                                                         <div 
                                                             className={`absolute top-full left-0 right-0 z-50 p-2 mt-1 rounded-lg border shadow-xl animate-in zoom-in-95 ${darkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200'}`}
@@ -476,13 +491,12 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
         )}
 
         
-        {/* --- VISTA PAGOS (NUEVA PESTAÑA ORDENADA POR FECHA) --- */}
+        {/* --- VISTA PAGOS (LISTA) --- */}
         {activeTab === 'payments' && viewType === 'list' && (
             <div className="h-full overflow-y-auto custom-scrollbar p-1">
                 <div className={`grid gap-3 ${isLarge ? 'grid-cols-3' : 'grid-cols-1'}`}>
                     {upcomingPayments.map((group, idx) => {
                         const dateObj = new Date(group.date);
-                        // Ajuste zona horaria
                         const dateLocal = new Date(dateObj.getTime() + dateObj.getTimezoneOffset() * 60000);
                         
                         const daysLeft = Math.ceil((dateLocal - new Date()) / (1000 * 60 * 60 * 24));
@@ -492,14 +506,8 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                         return (
                             <div 
                                 key={idx} 
-                                className={`
-                                    relative p-4 rounded-2xl border transition-all hover:shadow-lg
-                                    ${darkMode 
-                                        ? 'bg-slate-800/50 border-slate-700' 
-                                        : 'bg-white border-slate-200 shadow-sm'}
-                                `}
+                                className={`relative p-4 rounded-2xl border transition-all hover:shadow-lg ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}
                             >
-                                {/* Encabezado: Fecha Grande */}
                                 <div className="flex justify-between items-center mb-3">
                                     <div className="flex items-center gap-3">
                                         <div className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl font-bold shadow-sm ${isToday ? 'bg-emerald-100 text-emerald-600' : (darkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-500')}`}>
@@ -521,7 +529,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                     </div>
                                 </div>
 
-                                {/* Lista de Fuentes */}
                                 <div className={`space-y-1 pt-2 border-t ${darkMode ? 'border-slate-700/50' : 'border-slate-100'}`}>
                                     {[...group.companies].map(compName => (
                                         <div key={compName} className={`flex justify-between items-center text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>
@@ -533,7 +540,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                     ))}
                                 </div>
 
-                                {/* Botón Cobrar Todo */}
                                 <div className="mt-3">
                                     {payingLogId === group.date ? (
                                         <div className={`p-2 rounded-lg border animate-in fade-in relative z-50 ${darkMode ? 'bg-slate-900 border-emerald-900' : 'bg-slate-50 border-emerald-200'}`}>
@@ -616,14 +622,30 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
 
   return (
     <>
-        <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-full min-h-[300px]' : 'h-auto'}`}>            <div className="flex justify-between items-center mb-2 shrink-0">
+        <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-full min-h-[300px]' : 'h-auto'}`}>
+            <div className="flex justify-between items-center mb-2 shrink-0">
                 <div className="flex flex-col">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                     <Briefcase size={14} style={{ color: themeColor }}/> Gestión Trabajo
                     </h3>
-                    <span className="text-[9px] font-bold text-slate-400 mt-0.5">
-                        Por cobrar: <span className="text-emerald-500 font-black">{formatCurrency(totalOwed)}</span>
-                    </span>
+                    
+                    {/* NUEVO HEADER CON DATOS DESGLOSADOS */}
+                    <div className="mt-1 flex gap-3 text-[9px]">
+                        <div>
+                            <span className="text-slate-400 font-bold block">Ganado (Real)</span>
+                            <span className="text-emerald-500 font-black">{formatCurrency(totals.earned)}</span>
+                        </div>
+                        <div className="w-px bg-slate-200 dark:bg-slate-700 h-6 self-center"></div>
+                        <div>
+                            <span className="text-slate-400 font-bold block">Proyectado</span>
+                            <span className="text-slate-400 font-black">{formatCurrency(totals.projected)}</span>
+                        </div>
+                        <div className="w-px bg-slate-200 dark:bg-slate-700 h-6 self-center"></div>
+                        <div>
+                            <span className="text-slate-400 font-bold block">Total</span>
+                            <span className={`font-black ${darkMode ? 'text-white' : 'text-slate-700'}`}>{formatCurrency(totals.total)}</span>
+                        </div>
+                    </div>
                 </div>
                 <div className="flex items-center gap-1">
                     <div className="flex flex-col mr-1">
