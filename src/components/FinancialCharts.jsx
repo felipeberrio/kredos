@@ -83,13 +83,13 @@ export const FinancialCharts = ({ onOpenProjection }) => {
 
   const renderContent = () => {
     if (chartIndex !== 3 && (!currentView.data || currentView.data.length === 0)) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
-                <AlertCircle size={48} strokeWidth={1.5} className="mb-2"/>
-                <p className="text-xs font-bold uppercase">Sin datos</p>
-            </div>
-        );
-    }
+      return (
+          <div className="flex flex-col items-center justify-center h-[250px] text-slate-400 opacity-60">
+              <AlertCircle size={48} strokeWidth={1.5} className="mb-2"/>
+              <p className="text-xs font-bold uppercase">Sin datos en {currentView.title}</p>
+          </div>
+      );
+  }
 
     switch (chartIndex) {
       case 0: 
@@ -193,7 +193,7 @@ export const FinancialCharts = ({ onOpenProjection }) => {
       </div>
 
       {/* ÁREA DE GRÁFICA */}
-      <div className="flex-1 w-full relative animate-in zoom-in-95 duration-500 mt-2">
+      <div className="flex-1 w-full min-h-[250px] relative animate-in zoom-in-95 duration-500 mt-2">
         {renderContent()}
         
         {/* TOTAL CENTRO (Dona) */}

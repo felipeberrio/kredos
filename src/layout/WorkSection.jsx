@@ -4,8 +4,21 @@ import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
+/* RECOMENDACIONES
+import { formatDate, formatDateSafe, getMonthName, getYear } from '../utils/dateUtils';
+import { Calendar } from '../components/Calendar';
+import { WorkLogForm } from '../components/WorkLogForm';
+import { CompanyForm } from '../components/CompanyForm';
+import { WorkLogCard } from '../components/WorkLogCard';
+import { CompanyCard } from '../components/CompanyCard';
+import { WorkLogModal } from '../components/WorkLogModal';
+import { CompanyModal } from '../components/CompanyModal';
+import { WorkLogCalendar } from '../components/WorkLogCalendar';
+import { WorkLogList } from '../components/WorkLogList';
+import { CompanyList } from '../components/CompanyList'; */
+
 export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit, onAddCompany, onEditCompany }) => {
-  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany, isAllExpanded } = useFinancial();
+  const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany, isAllExpanded, payWorkLogs, calculatePayDate} = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
   
   useEffect(() => {
@@ -62,18 +75,76 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
   
   const getCompanyDebt = (companyId) => pendingLogs.filter(log => log.companyId === companyId).reduce((acc, log) => acc + Number(log.total), 0);
   
+  // --- CÁLCULO PRODUCCIÓN MES (MEJORADO: Proyección para Full-Time) ---
   const getCompanyMonthProduction = (companyId) => {
-      const currentMonthStr = new Date().toISOString().slice(0, 7);
-      return workLogs.filter(log => log.companyId === companyId && log.workDate.startsWith(currentMonthStr)).reduce((acc, log) => acc + Number(log.total), 0);
+      const comp = companies.find(c => c.id === companyId);
+      if (!comp) return 0;
+
+      // CASO 1: PART-TIME (Suma real de lo trabajado)
+      if (comp.type !== 'full-time') {
+          const currentMonthStr = new Date().toISOString().slice(0, 7);
+          return workLogs
+              .filter(log => log.companyId === companyId && log.workDate.startsWith(currentMonthStr))
+              .reduce((acc, log) => acc + Number(log.total), 0);
+      } 
+      
+      // CASO 2: FULL-TIME (Proyección estimada)
+      // Calculamos: Tarifa * Horas Semanales * 4 Semanas
+      const rate = Number(comp.rate || 0);
+      
+      // Intentamos calcular las horas semanales según tus datos
+      // Si tienes un array de días (workDays), asumimos 8h por día. Si no, 40h default.
+      let weeklyHours = 40; 
+      if (comp.workDays && Array.isArray(comp.workDays)) {
+          weeklyHours = comp.workDays.length * 8;
+      }
+      
+      // Retornamos la proyección mensual
+      return rate * weeklyHours * 4; 
   };
+
+// --- COBRAR MÚLTIPLES TURNOS (Genera Ingreso + Actualiza Saldos + Marca Pagados) ---
+  // Esta función es la que llama tu botón "Confirmar" del modal
+const handleConfirmPayment = () => {
+    if (!selectedWalletId) {
+        alert("Por favor selecciona una cuenta");
+        return;
+    }
+
+    // 'dayLogs' son los turnos que estás viendo en ese día y quieres cobrar
+    // Filtramos solo los que estén 'pending' para no cobrar doble por error
+    const pendingLogs = dayLogs.filter(log => log.status === 'pending');
+
+    if (pendingLogs.length === 0) {
+        alert("No hay turnos pendientes por cobrar en este día.");
+        return;
+    }
+
+    // ¡Aquí ocurre la magia!
+    payWorkLogs(pendingLogs, selectedWalletId);
+    
+    // Cierras el modal
+    setIsPaymentModalOpen(false);
+};
+
+
 
   // --- LOGICA PESTAÑA PAGOS (AGRUPACIÓN POR FECHA) ---
   const upcomingPayments = useMemo(() => {
       const groups = {};
       
       pendingLogs.forEach(log => {
-          const dateKey = log.paymentDate; 
+        // 1. INTENTAMOS OBTENER LA FECHA
+        let dateKey = log.paymentDate; 
           
+        // 2. SI ES NULL (Porque acabas de desmarcarlo), LA CALCULAMOS
+          if (!dateKey) {
+              const company = companies.find(c => c.id === log.companyId);
+              // Usamos la función inteligente del contexto para saber cuándo toca pagar
+              dateKey = calculatePayDate(log.workDate, company);
+          }
+          // Si por alguna razón sigue fallando, usamos la fecha de trabajo como fallback
+          if (!dateKey) dateKey = log.workDate;
           if (!groups[dateKey]) {
               groups[dateKey] = {
                   date: dateKey,
@@ -183,15 +254,22 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
 
   const handlePay = (log, walletId) => {
       if (!walletId) return;
-      markWorkAsPaid(log, walletId);
+      // Si selecciona "Ninguna", enviamos null (o el valor que prefieras para no afectar saldo)
+      const finalWalletId = walletId === 'NONE' ? null : walletId;
+      markWorkAsPaid(log, finalWalletId);
       setPayingLogId(null);
   };
 
   const handlePayGroup = (paymentGroup, walletId) => {
       if (!walletId) return;
-      paymentGroup.logs.forEach(log => {
-          markWorkAsPaid(log, walletId);
-      });
+      const finalWalletId = walletId === 'NONE' ? null : walletId;
+      // Si usas payWorkLogs, asegúrate de que soporte null, si no, iteramos manual:
+      if (finalWalletId === null) {
+          // Si es Ninguna, marcamos uno por uno sin afectar saldo global masivo
+          paymentGroup.logs.forEach(log => markWorkAsPaid(log, null));
+      } else {
+          payWorkLogs(paymentGroup.logs, finalWalletId);
+      }
       setPayingLogId(null);
   };
 
@@ -211,21 +289,71 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
         {/* HEADER CON NUEVOS TOTALES DESGLOSADOS */}
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2 shrink-0">
             {/* TABS */}
-            <div className={`flex p-1 rounded-xl shadow-inner ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                <button onClick={() => setActiveTab('logs')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'logs' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Turnos</button>
-                <button onClick={() => setActiveTab('payments')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'payments' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Pagos</button>
-                <button onClick={() => setActiveTab('companies')} className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${activeTab === 'companies' ? 'bg-white text-blue-600 shadow-sm dark:bg-slate-700 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'}`}>Empresas</button>
+            <div className="flex w-full p-1 rounded-xl mb-4" style={{ backgroundColor: darkMode ? '#1e293b' : '#f1f5f9' }}> {/* Forzamos el fondo del contenedor (Gris claro en Light / Gris oscuro en Dark) */}
+                {/* TAB: TURNOS */}
+                <button 
+                    onClick={() => setActiveTab('logs')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] uppercase transition-all ${
+                        activeTab === 'logs' 
+                            ? 'shadow-sm font-black' 
+                            : 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                    }`}
+                    style={{ 
+                        color: activeTab === 'logs' ? themeColor : undefined,
+                        backgroundColor: activeTab === 'logs' 
+                            ? (darkMode ? `${themeColor}15` : '#ffffff') 
+                            : 'transparent'
+                    }}
+                >
+                    <Clock size={12} className="shrink-0"/> Turnos
+                </button>
+
+                {/* TAB: PAGOS */}
+                <button 
+                    onClick={() => setActiveTab('payments')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] uppercase transition-all ${
+                        activeTab === 'payments' 
+                            ? 'shadow-sm font-black' 
+                            : 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                    }`}
+                    style={{ 
+                        color: activeTab === 'payments' ? themeColor : undefined,
+                        backgroundColor: activeTab === 'payments' 
+                            ? (darkMode ? `${themeColor}15` : '#ffffff') 
+                            : 'transparent'
+                    }}
+                >
+                    <Banknote size={12} className="shrink-0"/> Pagos
+                </button>
+
+                {/* TAB: EMPRESAS */}
+                <button 
+                    onClick={() => setActiveTab('companies')}
+                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] uppercase transition-all ${
+                        activeTab === 'companies' 
+                            ? 'shadow-sm font-black' 
+                            : 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+                    }`}
+                    style={{ 
+                        color: activeTab === 'companies' ? themeColor : undefined,
+                        backgroundColor: activeTab === 'companies' 
+                            ? (darkMode ? `${themeColor}15` : '#ffffff') 
+                            : 'transparent'
+                    }}
+                >
+                    <Building2 size={12} className="shrink-0"/> Empresas
+                </button>
             </div>
 
             {(activeTab === 'logs' || activeTab === 'payments') && (
                 <div className="flex gap-2 items-center">
-                    <div className={`flex p-1 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
-                        <button onClick={() => setViewType('calendar')} className={`p-1.5 rounded-lg transition-all ${viewType === 'calendar' ? (darkMode ? 'bg-slate-700 text-white' : 'bg-white text-slate-800 shadow') : 'text-slate-400'}`}><CalendarIcon size={14}/></button>
-                        <button onClick={() => setViewType('list')} className={`p-1.5 rounded-lg transition-all ${viewType === 'list' ? (darkMode ? 'bg-slate-700 text-white' : 'bg-white text-slate-800 shadow') : 'text-slate-400'}`}><List size={14}/></button>
+                    <div className={`flex p-1 rounded-xl`}>
+                        <button onClick={() => setViewType('calendar')} className={`p-1.5 rounded-lg transition-all') : 'text-slate-400'}`}><CalendarIcon size={14}/></button>
+                        <button onClick={() => setViewType('list')} className={`p-1.5 rounded-lg transition-all `}><List size={14}/></button>
                     </div>
 
                     {viewType === 'calendar' && (
-                        <div className={`flex items-center gap-2 px-2 py-1 rounded-xl border ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-700'}`}>
+                        <div className={`flex items-center gap-2 px-2 py-1 rounded-xl border`}>
                             <button onClick={() => changeDate(-1)} className="text-slate-400 hover:text-slate-600"><ChevronLeft size={14}/></button>
                             <span className="text-[10px] font-bold w-24 text-center capitalize truncate">{dateLabel}</span>
                             <button onClick={() => changeDate(1)} className="text-slate-400 hover:text-slate-600"><ChevronRight size={14}/></button>
@@ -406,10 +534,10 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                     <div className={`absolute right-14 top-1/2 -translate-y-1/2 z-[100] shadow-2xl p-3 rounded-xl border w-48 animate-in fade-in zoom-in ${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'}`} onClick={(e) => e.stopPropagation()}>
                                         <div className={`flex justify-between items-center mb-2 pb-1 border-b ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
                                             <span className="text-[9px] font-bold text-slate-500 uppercase flex items-center gap-1"><Wallet size={10}/> Depositar en:</span>
-                                            <button onClick={() => setPayingLogId(null)} className="text-slate-400 hover:text-rose-500"><X size={10}/></button>
+                                            <button onClick={(e) => {e.stopPropagation(); setPayingLogId(null)}} className="text-slate-400 hover:text-rose-500"><X size={10}/></button>
                                         </div>
-                                        <select className={`w-full text-[10px] p-2 rounded border outline-none cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`} onChange={(e) => handlePay(log, e.target.value)} autoFocus>
-                                            <option value="">Seleccionar cuenta...</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                                        <select className={`w-full text-[10px] p-2 rounded border outline-none cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`} onChange={(e) => handlePay(log, e.target.value)} onClick={(e) => e.stopPropagation()} autoFocus>
+                                            <option value="">Seleccionar cuenta...</option><option value="NONE">Ninguna</option>{wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                         </select>
                                     </div>
                                 )}
@@ -466,14 +594,16 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                                         >
                                                             <div className="flex justify-between items-center mb-1">
                                                                 <span className="text-[8px] font-bold opacity-70">Depositar:</span>
-                                                                <X size={10} className="cursor-pointer" onClick={() => setPayingLogId(null)}/>
+                                                                <X size={10} className="cursor-pointer" onClick={(e) => {e.stopPropagation();setPayingLogId(null)}}/>
                                                             </div>
                                                             <select 
                                                                 className={`w-full text-[9px] p-1 rounded border outline-none ${darkMode ? 'bg-slate-900 border-slate-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'}`}
                                                                 onChange={(e) => handlePayGroup(payment, e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
                                                                 autoFocus
                                                             >
                                                                 <option value="">Cuenta...</option>
+                                                                <option value="NONE">Ninguna</option>
                                                                 {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                                             </select>
                                                         </div>
@@ -545,14 +675,16 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                         <div className={`p-2 rounded-lg border animate-in fade-in relative z-50 ${darkMode ? 'bg-slate-900 border-emerald-900' : 'bg-slate-50 border-emerald-200'}`}>
                                             <div className="flex justify-between mb-1">
                                                 <span className={`text-[8px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>Depositar todo en:</span> 
-                                                <X size={10} className="cursor-pointer text-slate-400 hover:text-rose-500" onClick={() => setPayingLogId(null)}/>
+                                                <X size={10} className="cursor-pointer text-slate-400 hover:text-rose-500" onClick={(e) => {e.stopPropagation();setPayingLogId(null)}}/>
                                             </div>
                                             <select 
                                                 className={`w-full text-[10px] p-1.5 rounded border outline-none cursor-pointer ${darkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`} 
                                                 onChange={(e) => handlePayGroup(group, e.target.value)} 
+                                                onClick={(e) => e.stopPropagation()}
                                                 autoFocus
                                             >
                                                 <option value="">Seleccionar cuenta...</option>
+                                                <option value="NONE">Ninguna</option>
                                                 {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                             </select>
                                         </div>
@@ -591,7 +723,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
                                 <div className="flex justify-between items-start mb-2">
                                     <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-slate-50 dark:bg-slate-700 text-slate-500 font-bold shadow-inner">{comp.name.charAt(0)}</div>
                                     <div className="text-right">
-                                        <span className="text-[8px] text-slate-400 font-bold uppercase block">Deuda</span>
+                                        <span className="text-[8px] text-slate-400 font-bold uppercase block">Adeuda</span>
                                         <span className={`text-xs font-black ${debt > 0 ? 'text-emerald-500' : 'text-slate-300'}`}>{formatCurrency(debt)}</span>
                                     </div>
                                 </div>

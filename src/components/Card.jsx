@@ -1,6 +1,7 @@
 import React from 'react';
 import { useFinancial } from '../context/FinancialContext';
 
+
 export const Card = ({ children, className = "" }) => {
   const { darkMode } = useFinancial();
   

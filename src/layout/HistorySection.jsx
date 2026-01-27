@@ -18,49 +18,43 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
   const [localCategory, setLocalCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
 
-  // --- LÓGICA MEJORADA CON SALDO HISTÓRICO ---
+  // --- LÓGICA CORREGIDA DE SALDO HISTÓRICO ---
   const processedTransactions = useMemo(() => {
-    // 1. Unificar todas las transacciones
+    // 1. Unificar todas las transacciones base
     let allTransactions = [
       ...filteredIncomes.map(i => ({ ...i, type: 'income' })),
       ...filteredExpenses.map(e => ({ ...e, type: 'expense' }))
     ];
 
-    // 2. Ordenar cronológicamente (más antiguo primero) para calcular el saldo progresivo
-    allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // 2. APLICAR FILTROS PRIMERO (Para que el saldo tenga sentido en el contexto filtrado)
+    if (localWallet !== 'all') {
+        allTransactions = allTransactions.filter(t => t.walletId === localWallet);
+    }
 
-    // 3. Calcular saldo acumulado (Running Balance)
-    // Nota: Esto asume un saldo inicial de 0. Si quisieras ser ultra-preciso,
-    // necesitarías saber el saldo inicial de la cuenta antes de la primera transacción registrada.
-    // Para simplificar y ser útil visualmente, calculamos el flujo neto desde el inicio de los tiempos.
+    if (localCategory !== 'all') {
+        allTransactions = allTransactions.filter(t => (t.category || 'Otros') === localCategory);
+    }
+
+    // 3. ORDENAR CRONOLÓGICAMENTE (Antiguo -> Nuevo) para calcular el saldo
+    // Clonamos para no afectar el array original si se reusa
+    const chronologicallySorted = [...allTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // 4. CALCULAR SALDO ACUMULADO (Running Balance)
+    // Si estamos filtrando por una cuenta específica, intentamos obtener su saldo inicial si fuera posible
+    // (Por ahora asumimos flujo 0, pero será consistente dentro del filtro)
     let runningBalance = 0;
-    const transactionsWithBalance = allTransactions.map(t => {
+    
+    // Mapeamos sobre el array ordenado cronológicamente
+    const transactionsWithBalance = chronologicallySorted.map(t => {
         if (t.type === 'income') runningBalance += Number(t.amount);
         else runningBalance -= Number(t.amount);
         return { ...t, balanceAfter: runningBalance };
     });
 
-    // 4. Aplicar Filtros Locales (Wallet / Categoría)
-    let filteredData = transactionsWithBalance;
-    
-    if (localWallet !== 'all') {
-        // Si filtramos por cuenta, recalculamos el saldo solo para esa cuenta
-        let walletBalance = 0;
-        // Re-filtramos desde la base original para tener el historial correcto de ESA cuenta
-        const walletTrans = allTransactions.filter(t => t.walletId === localWallet);
-        filteredData = walletTrans.map(t => {
-            if (t.type === 'income') walletBalance += Number(t.amount);
-            else walletBalance -= Number(t.amount);
-            return { ...t, balanceAfter: walletBalance };
-        });
-    }
-
-    if (localCategory !== 'all') {
-        filteredData = filteredData.filter(t => (t.category || 'Otros') === localCategory);
-    }
-
-    // 5. Aplicar Ordenamiento Final (para visualización)
-    filteredData.sort((a, b) => {
+    // 5. APLICAR ORDENAMIENTO DE VISUALIZACIÓN FINAL
+    // Ahora que cada transacción tiene su 'balanceAfter' calculado correctamente en secuencia,
+    // podemos reordenarlas para mostrarlas como el usuario quiera (ej: más recientes primero)
+    return transactionsWithBalance.sort((a, b) => {
       switch (sortOrder) {
         case 'oldest': return new Date(a.date) - new Date(b.date);
         case 'highest': return b.amount - a.amount;
@@ -69,7 +63,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
       }
     });
 
-    return filteredData;
   }, [filteredIncomes, filteredExpenses, localWallet, localCategory, sortOrder]);
 
   const selectStyle = {
@@ -172,6 +165,12 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                                         <Tag size={8}/> {t.category}
                                     </span>
                                 )}
+                                {/* --- COMIENZO DEL CAMBIO PARA EL DETALLE --- */}
+                                {t.description && (
+                                    <p className={`text-[11px] mt-0.5 leading-tight ${darkMode ? 'text-slate-500' : 'text-slate-400'} italic line-clamp-1`}>
+                                        {t.description}
+                                    </p>
+                                )}
                             </div>
                             <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{t.date} • {walletName}</p>
                             </div>
@@ -182,7 +181,7 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                                 <span className={`font-black text-sm block ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
                                     {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                                 </span>
-                                {/* AQUI ESTA EL CAMBIO: SALDO RESULTANTE */}
+                                {/* SALDO RESULTANTE (Ahora consistente con el filtro) */}
                                 <span className="block text-[10px] text-slate-400 font-medium mt-0.5 opacity-60">
                                     {formatCurrency(t.balanceAfter)}
                                 </span>

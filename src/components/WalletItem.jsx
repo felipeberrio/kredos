@@ -30,6 +30,9 @@ export const WalletItem = ({ wallet }) => {
   const available = limit - usedDebt;
   const progress = limit > 0 ? (usedDebt / limit) * 100 : 0;
 
+  // Lógica de color para el disponible: Rojo si es negativo, Verde si es positivo
+  const availableColor = available < 0 ? 'text-rose-500' : 'text-emerald-500';
+
   return (
     <div className={`p-4 rounded-3xl border transition-all ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'}`}>
       
@@ -45,6 +48,7 @@ export const WalletItem = ({ wallet }) => {
         </div>
 
         <div className="text-right">
+            {/* El saldo principal también se difumina con privacyMode */}
             <span className={`font-black text-sm block ${privacyMode ? 'blur-md select-none' : ''} ${wallet.balance < 0 ? 'text-rose-500' : (darkMode ? 'text-white' : 'text-slate-900')}`}>
                 {formatCurrency(wallet.balance)}
             </span>
@@ -56,22 +60,30 @@ export const WalletItem = ({ wallet }) => {
         <div className="mt-3 pt-3 border-t border-dashed border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-1 text-[9px] font-bold uppercase">
                 <span className="text-slate-400">Cupo Usado</span>
-                <span className={`text-emerald-500 ${privacyMode ? 'blur-[2px]' : ''}`}>Disp: {formatCurrency(available)}</span>
+                {/* APLICAMOS EL COLOR DINÁMICO AQUÍ */}
+                <span className={`${availableColor} ${privacyMode ? 'blur-[4px] select-none' : ''}`}>
+                    Disp: {formatCurrency(available)}
+                </span>
             </div>
             
-            <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                <div 
-                    className="h-full transition-all duration-1000"
-                    style={{ 
-                        width: `${Math.min(progress, 100)}%`, 
-                        backgroundColor: themeColor // Usa el color del tema
-                    }}
-                />
-            </div>
-            
-            <div className={`text-right text-[8px] font-bold text-slate-400 mt-1 ${privacyMode ? 'blur-[2px]' : ''}`}>
-                Límite: {formatCurrency(limit)}
-            </div>
+            {/* LÓGICA DE PRIVACIDAD: Si privacyMode es true, NO RENDERIZAMOS la barra ni el límite */}
+            {!privacyMode && (
+                <>
+                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full transition-all duration-1000"
+                            style={{ 
+                                width: `${Math.min(progress, 100)}%`, 
+                                backgroundColor: themeColor // Usa el color del tema
+                            }}
+                        />
+                    </div>
+                    
+                    <div className="text-right text-[8px] font-bold text-slate-400 mt-1">
+                        Límite: {formatCurrency(limit)}
+                    </div>
+                </>
+            )}
         </div>
       )}
     </div>

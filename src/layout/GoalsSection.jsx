@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
-import { Target, ChevronUp, ChevronDown, Minus, Maximize2, Calendar, TrendingUp, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+// 1. IMPORTAMOS EL ICONO 'Plus'
+import { Target, ChevronUp, ChevronDown, Minus, Maximize2, Calendar, TrendingUp, AlertCircle, CheckCircle2, Clock, Plus } from 'lucide-react';
 
-export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
+// 2. RECIBIMOS 'onAdd' EN LAS PROPS
+export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit, onAdd }) => {
   const { goals, deleteGoal, themeColor, darkMode, isAllExpanded, getGoalDetails } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -24,21 +26,62 @@ export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) 
   return (
     <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-full min-h-[300px]' : 'h-auto'}`}>
       
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-4 shrink-0">
-        <div className="flex flex-col">
+      {/* --- HEADER ESTANDARIZADO --- */}
+      <div className="flex justify-between items-center mb-4">
+        
+        {/* IZQUIERDA: ÍCONO Y TÍTULO */}
+        <div className="flex items-center gap-2">
+            <div className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800 text-blue-400' : 'bg-blue-50 text-blue-500'}`}>
+                <Target size={14} />
+            </div>
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                <Target size={14} style={{ color: themeColor }}/> Metas de Ahorro
+                METAS DE AHORRO 
             </h3>
         </div>
-        <div className="flex items-center gap-1">
-            <div className="flex flex-col mr-1">
-                {!isFirst && <button onClick={onMoveUp} className="text-slate-300 hover:text-slate-500"><ChevronUp size={10} strokeWidth={3}/></button>}
-                {!isLast && <button onClick={onMoveDown} className="text-slate-300 hover:text-slate-500"><ChevronDown size={10} strokeWidth={3}/></button>}
+
+        {/* DERECHA: CONTROLES (ORDENAR -> MINIMIZAR -> AGREGAR) */}
+        <div className="flex items-center gap-3">
+            
+            {/* 1. ORDENAR (Flechas Verticales) */}
+            <div className="flex flex-col items-center justify-center gap-0.5">
+                <button 
+                    onClick={onMoveUp} 
+                    disabled={isFirst}
+                    className={`hover:text-blue-500 transition-colors leading-none ${isFirst ? 'opacity-30 cursor-not-allowed' : 'text-slate-400'}`}
+                    title="Subir Sección"
+                >
+                    <ChevronUp size={10} />
+                </button>
+                <button 
+                    onClick={onMoveDown} 
+                    disabled={isLast}
+                    className={`hover:text-blue-500 transition-colors leading-none ${isLast ? 'opacity-30 cursor-not-allowed' : 'text-slate-400'}`}
+                    title="Bajar Sección"
+                >
+                    <ChevronDown size={10} />
+                </button>
             </div>
-            <button onClick={() => setIsExpanded(!isExpanded)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all">
-                {isExpanded ? <Minus size={16}/> : <Maximize2 size={16}/>}
+
+            {/* 2. MINIMIZAR (Guión) */}
+            <button 
+                onClick={() => setIsExpanded(!isExpanded)} 
+                className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                title={isExpanded ? "Contraer" : "Expandir"}
+            >
+                {isExpanded ? <Minus size={16}/> : <Maximize2 size={14}/>}
             </button>
+
+            {/* 3. AGREGAR (Botón Azul) */}
+            {/* Solo se muestra si la sección tiene función de agregar */}
+            {onAdd && (
+                <button 
+                    onClick={onAdd} 
+                    className="bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-lg shadow-md transition-all hover:scale-105 active:scale-95"
+                    title="Agregar Nuevo"
+                >
+                    <Plus size={16} />
+                </button>
+            )}
         </div>
       </div>
 
@@ -95,7 +138,12 @@ export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) 
 
                         {/* Detalles de Proyección */}
                         {!isCompleted && (
-                            <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg">
+                            <div className={`flex justify-between items-center text-[9px] font-bold text-slate-400 p-2 rounded-lg border shadow-sm transition-all
+                                ${darkMode 
+                                    ? 'bg-slate-800/50 border-slate-700' // Oscuro: Un poco transparente
+                                    : 'bg-white border-slate-100' // Claro: Blanco puro con borde suave
+                                }`}
+                            >
                                 {details.status === 'no_plan' ? (
                                     <span className="flex items-center gap-1 text-rose-400">
                                         <AlertCircle size={10}/> Define un plan de ahorro

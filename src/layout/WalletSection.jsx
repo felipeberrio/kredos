@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PlusCircle, ChevronUp, ChevronDown, CheckCircle2, Minus, Maximize2, Settings, Trash2 } from 'lucide-react';
 import { useFinancial } from '../context/FinancialContext';
 import { WalletItem } from '../components/WalletItem';
+import { formatCurrency } from '../utils/formatters';
 
 export const WalletSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
   const { wallets, selectedWalletId, setSelectedWalletId, themeColor, deleteWallet, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
-
+  const { formatMoney } = useFinancial();
+  
   useEffect(() => {
     setIsExpanded(isAllExpanded);
 }, [isAllExpanded]);

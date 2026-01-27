@@ -3,6 +3,7 @@ import { Plus, PieChart, TrendingUp, TrendingDown, Wallet, ArrowLeft, Calendar, 
 import { useFinancial } from '../context/FinancialContext';
 import { Card } from './Card';
 import { formatCurrency } from '../utils/formatters';
+import { DEFAULT_EXPENSE_CATS, DEFAULT_INCOME_CATS } from '../constants/config';
 
 // --- CATEGORÍAS PREDEFINIDAS ---
 const EXPENSE_CATS = ['Vivienda', 'Comida', 'Transporte', 'Ocio', 'Salud', 'Educación', 'Servicios', 'Otros'];
@@ -12,7 +13,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
   const { 
     addTransaction, // Usamos la función genérica si existe, o las específicas
     addIncome, addExpense, updateIncome, updateExpense, updateTransaction,
-    wallets, categories: contextCategories, 
+    wallets, categories: contextCategories, incomeCategories,
     themeColor, darkMode,
     filteredIncomes, filteredExpenses, privacyMode,
     useSemanticColors
@@ -33,8 +34,8 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
   const [amount, setAmount] = useState('');
 
   // Memorizar las listas de categorías
-  const expenseCategoriesList = useMemo(() => contextCategories.length > 0 ? contextCategories : EXPENSE_CATS, [contextCategories]);
-  const incomeCategoriesList = INCOME_CATS;
+  const expenseCategoriesList = useMemo(() => contextCategories.length > 0 ? contextCategories : DEFAULT_EXPENSE_CATS, [contextCategories]);
+  const incomeCategoriesList = useMemo(() => incomeCategories.length > 0 ? incomeCategories : DEFAULT_INCOME_CATS, [incomeCategories]);
 
   // Lista actual para el renderizado del select
   const currentCategories = type === 'income' ? incomeCategoriesList : expenseCategoriesList;
@@ -75,14 +76,18 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
     setShowSuccess(false);
   };
 
-  const handleSubmit = (e) => {
+const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validaciones básicas
     if (!amount || !itemName || !walletId) {
         alert("Por favor completa el monto, item y cuenta.");
         return;
     }
 
+    // Construimos el objeto con los datos del formulario
     const transactionData = {
+      // Si estamos editando, mantenemos el ID original. Si es nuevo, creamos uno.
       id: editingItem ? editingItem.id : Date.now().toString(),
       name: itemName,
       description: description,
@@ -90,34 +95,35 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
       category, 
       walletId,
       date: date,
-      type: type // Importante para la lógica interna
+      type: type // Es crucial que este campo vaya para que sepa si es ingreso o gasto
     };
 
-    // LÓGICA DE GUARDADO ROBUSTA
+    // --- AQUÍ ESTÁ EL CAMBIO ---
     if (editingItem) {
-        // Editar
+        // EDITAR
         if (updateTransaction) {
-            updateTransaction(editingItem, transactionData);
+            // ANTES: updateTransaction(editingItem, transactionData);
+            // AHORA: Solo pasamos 'transactionData'. El contexto usará el ID para buscar el original.
+            updateTransaction(transactionData); 
         } else {
+            // Fallback por si acaso (lógica antigua)
             type === 'expense' ? updateExpense(transactionData) : updateIncome(transactionData);
         }
     } else {
-        // Nuevo
+        // NUEVO REGISTRO
         if (addTransaction) {
             addTransaction(type, transactionData);
         } else {
-            // Fallback si no existe la fn genérica
             type === 'expense' ? addExpense(transactionData) : addIncome(transactionData);
         }
     }
 
-    // Mostrar mensaje de éxito y limpiar
+    // UI Feedback
     setShowSuccess(true);
     setTimeout(() => {
         cleanForm();
     }, 1500);
-  };
-
+};
   // Datos para Resumen
   const analysisData = useMemo(() => {
       const income = filteredIncomes.reduce((acc, t) => acc + Number(t.amount), 0);
@@ -179,16 +185,22 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
       <div className={`flex p-1 rounded-xl mb-4 shrink-0 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
         <button 
             onClick={() => { setActiveTab('form'); if(!editingItem) setShowForm(false); }}
-            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            style={{ color: activeTab === 'form' ? themeColor : undefined }}
-        >
+            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            style={{ color: activeTab === 'form' ? themeColor : undefined,
+                    backgroundColor: activeTab === 'form' 
+                    ? (darkMode ? `${themeColor}15` : '#ffffff') 
+                    : 'transparent'
+            }}>
             <Plus size={14} strokeWidth={3} /> Nuevo Registro
         </button>
         <button 
             onClick={() => setActiveTab('analysis')}
-            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'bg-white dark:bg-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            style={{ color: activeTab === 'analysis' ? themeColor : undefined }}
-        >
+            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            style={{ color: activeTab === 'analysis' ? themeColor : undefined,
+                    backgroundColor: activeTab === 'analysis' 
+                    ? (darkMode ? `${themeColor}15` : '#ffffff') 
+                    : 'transparent'
+            }}>
             <PieChart size={14} strokeWidth={3} /> Resumen Periodo
         </button>
       </div>
@@ -215,24 +227,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                  <h4 className={`text-sm font-black uppercase tracking-widest ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>¿Qué deseas registrar?</h4>
                              </div>
                              
-                             {/* BOTÓN GASTO */}
-                             <button 
-                                onClick={() => handleStart('expense')} 
-                                className={`group w-full relative rounded-3xl border-2 transition-all active:scale-95 flex items-center justify-between p-6 overflow-hidden ${useSemanticColors ? expenseStyle.containerClass : ''}`}
-                                style={useSemanticColors ? {} : expenseStyle.containerStyle}
-                             >
-                                 <div className="relative z-10 text-left">
-                                     <span className={`block text-xs font-bold uppercase mb-1 ${useSemanticColors ? expenseStyle.textSmall : ''}`} style={useSemanticColors ? {} : expenseStyle.textSmallStyle}>Registrar</span>
-                                     <span className={`text-3xl font-black ${useSemanticColors ? expenseStyle.textBig : ''}`} style={useSemanticColors ? {} : expenseStyle.textBigStyle}>GASTO</span>
-                                 </div>
-                                 <div 
-                                    className={`p-5 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-12 ${useSemanticColors ? expenseStyle.iconCircle : ''}`}
-                                    style={useSemanticColors ? {} : expenseStyle.iconCircleStyle}
-                                 >
-                                     <TrendingDown size={32} strokeWidth={2.5} />
-                                 </div>
-                             </button>
-
+                            
                              {/* BOTÓN INGRESO */}
                              <button 
                                 onClick={() => handleStart('income')} 
@@ -250,6 +245,25 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                      <TrendingUp size={32} strokeWidth={2.5} />
                                  </div>
                              </button>
+
+                              {/* BOTÓN GASTO */}
+                             <button 
+                                onClick={() => handleStart('expense')} 
+                                className={`group w-full relative rounded-3xl border-2 transition-all active:scale-95 flex items-center justify-between p-6 overflow-hidden ${useSemanticColors ? expenseStyle.containerClass : ''}`}
+                                style={useSemanticColors ? {} : expenseStyle.containerStyle}
+                             >
+                                 <div className="relative z-10 text-left">
+                                     <span className={`block text-xs font-bold uppercase mb-1 ${useSemanticColors ? expenseStyle.textSmall : ''}`} style={useSemanticColors ? {} : expenseStyle.textSmallStyle}>Registrar</span>
+                                     <span className={`text-3xl font-black ${useSemanticColors ? expenseStyle.textBig : ''}`} style={useSemanticColors ? {} : expenseStyle.textBigStyle}>GASTO</span>
+                                 </div>
+                                 <div 
+                                    className={`p-5 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-12 ${useSemanticColors ? expenseStyle.iconCircle : ''}`}
+                                    style={useSemanticColors ? {} : expenseStyle.iconCircleStyle}
+                                 >
+                                     <TrendingDown size={32} strokeWidth={2.5} />
+                                 </div>
+                             </button>
+
                          </div>
                      ) : (
                          /* PASO 2: EL FORMULARIO COMPLETO */
@@ -282,7 +296,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Wallet size={10}/> Cuenta</label>
-                                    <select value={walletId} onChange={e => setWalletId(e.target.value)} className="w-full p-3 rounded-xl text-xs font-bold outline-none border cursor-pointer transition-shadow duration-200" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
+                                    <select value={walletId || ""} onChange={e => setWalletId(e.target.value)} className="w-full p-3 rounded-xl text-xs font-bold outline-none border cursor-pointer transition-shadow duration-200" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
                                         {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                     </select>
                                 </div>
@@ -305,7 +319,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                     className="w-full p-3 rounded-xl text-xs font-bold outline-none border transition-shadow duration-200" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
-                                    value={date}
+                                    value={date || ''}
                                     onChange={e => setDate(e.target.value)}
                                 />
                             </div>
@@ -318,7 +332,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                     className="w-full p-3 rounded-xl text-sm font-bold outline-none border transition-shadow duration-200" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
-                                    value={itemName}
+                                    value={itemName || ''}
                                     onChange={e => setItemName(e.target.value)}
                                     autoFocus
                                 />
@@ -332,7 +346,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                     className="w-full p-3 rounded-xl text-xs outline-none border transition-shadow duration-200" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
-                                    value={description}
+                                    value={description || ''}
                                     onChange={e => setDescription(e.target.value)}
                                 />
                             </div>
@@ -345,7 +359,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                                     className="w-full p-4 pl-8 rounded-xl text-3xl font-black outline-none border transition-shadow duration-200" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
-                                    value={amount}
+                                    value={amount || ''}
                                     onChange={e => setAmount(e.target.value)}
                                 />
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">$</span>
