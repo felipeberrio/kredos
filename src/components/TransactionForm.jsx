@@ -11,7 +11,7 @@ const INCOME_CATS = ['Salario', 'Negocio', 'Freelance', 'Regalos', 'Inversiones'
 
 export const TransactionForm = ({ editingItem, setEditingItem }) => {
   const { 
-    addTransaction, // Usamos la función genérica si existe, o las específicas
+    addTransaction,
     addIncome, addExpense, updateIncome, updateExpense, updateTransaction,
     wallets, categories: contextCategories, incomeCategories,
     themeColor, darkMode,
@@ -22,7 +22,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
   // Estados de Navegación
   const [activeTab, setActiveTab] = useState('form'); 
   const [showForm, setShowForm] = useState(false); 
-  const [showSuccess, setShowSuccess] = useState(false); // Estado para mensaje de éxito
+  const [showSuccess, setShowSuccess] = useState(false); 
   
   // Estados del Formulario
   const [type, setType] = useState('expense');
@@ -50,10 +50,9 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
       setCategory(editingItem.category);
       setDate(editingItem.date);
       setItemName(editingItem.name); 
-      setDescription(editingItem.description || ''); // Campo opcional
+      setDescription(editingItem.description || ''); 
       setAmount(editingItem.amount);
     } else {
-        // Defaults iniciales
         setShowForm(false); 
         if (wallets.length > 0 && !walletId) setWalletId(wallets[0].id);
         setCategory(expenseCategoriesList[0]); 
@@ -61,11 +60,10 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
     }
   }, [editingItem, wallets]); 
 
-  // Lógica manual al iniciar selección
   const handleStart = (selectedType) => {
       setType(selectedType);
       const targetList = selectedType === 'income' ? incomeCategoriesList : expenseCategoriesList;
-      setCategory(targetList[0]); // Resetear categoría válida
+      setCategory(targetList[0]);
       setShowForm(true);
   };
 
@@ -76,18 +74,14 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
     setShowSuccess(false);
   };
 
-const handleSubmit = (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // Validaciones básicas
     if (!amount || !itemName || !walletId) {
         alert("Por favor completa el monto, item y cuenta.");
         return;
     }
 
-    // Construimos el objeto con los datos del formulario
     const transactionData = {
-      // Si estamos editando, mantenemos el ID original. Si es nuevo, creamos uno.
       id: editingItem ? editingItem.id : Date.now().toString(),
       name: itemName,
       description: description,
@@ -95,43 +89,29 @@ const handleSubmit = (e) => {
       category, 
       walletId,
       date: date,
-      type: type // Es crucial que este campo vaya para que sepa si es ingreso o gasto
+      type: type 
     };
 
-    // --- AQUÍ ESTÁ EL CAMBIO ---
     if (editingItem) {
-        // EDITAR
-        if (updateTransaction) {
-            // ANTES: updateTransaction(editingItem, transactionData);
-            // AHORA: Solo pasamos 'transactionData'. El contexto usará el ID para buscar el original.
-            updateTransaction(transactionData); 
-        } else {
-            // Fallback por si acaso (lógica antigua)
-            type === 'expense' ? updateExpense(transactionData) : updateIncome(transactionData);
-        }
+        if (updateTransaction) updateTransaction(transactionData); 
+        else type === 'expense' ? updateExpense(transactionData) : updateIncome(transactionData);
     } else {
-        // NUEVO REGISTRO
-        if (addTransaction) {
-            addTransaction(type, transactionData);
-        } else {
-            type === 'expense' ? addExpense(transactionData) : addIncome(transactionData);
-        }
+        if (addTransaction) addTransaction(type, transactionData);
+        else type === 'expense' ? addExpense(transactionData) : addIncome(transactionData);
     }
 
-    // UI Feedback
     setShowSuccess(true);
     setTimeout(() => {
         cleanForm();
     }, 1500);
-};
-  // Datos para Resumen
+  };
+
   const analysisData = useMemo(() => {
       const income = filteredIncomes.reduce((acc, t) => acc + Number(t.amount), 0);
       const expense = filteredExpenses.reduce((acc, t) => acc + Number(t.amount), 0);
       return { income, expense, balance: income - expense };
   }, [filteredIncomes, filteredExpenses]);
 
-  // --- ESTILOS DINÁMICOS ---
   const inputStyle = {
     backgroundColor: darkMode ? '#1e293b' : '#fff',
     color: darkMode ? '#fff' : '#0f172a',
@@ -141,7 +121,6 @@ const handleSubmit = (e) => {
   const handleFocus = (e) => e.target.style.boxShadow = `0 0 0 3px ${themeColor}30`;
   const handleBlur = (e) => e.target.style.boxShadow = 'none';
 
-  // Estilos de botones grandes
   const getButtonStyle = (btnType) => {
       if (useSemanticColors) {
           if (btnType === 'expense') {
@@ -149,14 +128,14 @@ const handleSubmit = (e) => {
                   containerClass: darkMode ? 'bg-rose-900/10 border-rose-900/30 hover:border-rose-500/50' : 'bg-rose-50 border-rose-100 hover:border-rose-200 shadow-sm',
                   textSmall: darkMode ? 'text-rose-300' : 'text-rose-400',
                   textBig: darkMode ? 'text-white' : 'text-rose-600',
-                  iconCircle: darkMode ? 'bg-rose-500 text-white shadow-lg shadow-rose-900/50' : 'bg-rose-500 text-white shadow-lg shadow-rose-200'
+                  iconCircle: darkMode ? 'bg-rose-500 text-white shadow-rose-900/50' : 'bg-rose-500 text-white shadow-rose-200'
               };
           } else {
               return {
                   containerClass: darkMode ? 'bg-emerald-900/10 border-emerald-900/30 hover:border-emerald-500/50' : 'bg-emerald-50 border-emerald-100 hover:border-emerald-200 shadow-sm',
                   textSmall: darkMode ? 'text-emerald-300' : 'text-emerald-400',
                   textBig: darkMode ? 'text-white' : 'text-emerald-600',
-                  iconCircle: darkMode ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-900/50' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-200'
+                  iconCircle: darkMode ? 'bg-emerald-500 text-white shadow-emerald-900/50' : 'bg-emerald-500 text-white shadow-emerald-200'
               };
           }
       }
@@ -179,171 +158,175 @@ const handleSubmit = (e) => {
   const incomeStyle = getButtonStyle('income');
 
   return (
-    <Card className={`h-full flex flex-col transition-all duration-300 min-h-[500px] ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+    // CAMBIO 1: Eliminamos min-h-[500px] y ponemos h-auto para que sea compacta
+    <Card className={`flex flex-col transition-all duration-300 h-auto ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
       
-      {/* HEADER: PESTAÑAS */}
-      <div className={`flex p-1 rounded-xl mb-4 shrink-0 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+      {/* HEADER: PESTAÑAS (Más compacto mb-3 en vez de mb-4) */}
+      <div className={`flex p-1 rounded-xl mb-3 shrink-0 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
         <button 
             onClick={() => { setActiveTab('form'); if(!editingItem) setShowForm(false); }}
-            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
             style={{ color: activeTab === 'form' ? themeColor : undefined,
                     backgroundColor: activeTab === 'form' 
                     ? (darkMode ? `${themeColor}15` : '#ffffff') 
                     : 'transparent'
             }}>
-            <Plus size={14} strokeWidth={3} /> Nuevo Registro
+            <Plus size={14} strokeWidth={3} /> Nuevo
         </button>
         <button 
             onClick={() => setActiveTab('analysis')}
-            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
             style={{ color: activeTab === 'analysis' ? themeColor : undefined,
                     backgroundColor: activeTab === 'analysis' 
                     ? (darkMode ? `${themeColor}15` : '#ffffff') 
                     : 'transparent'
             }}>
-            <PieChart size={14} strokeWidth={3} /> Resumen Periodo
+            <PieChart size={14} strokeWidth={3} /> Resumen
         </button>
       </div>
 
       {/* CONTENIDO */}
       {activeTab === 'form' ? (
           <div className="flex-1 flex flex-col relative overflow-hidden">
-             
+              
              {/* PANTALLA DE ÉXITO */}
              {showSuccess ? (
-                 <div className="flex-1 flex flex-col items-center justify-center animate-in zoom-in fade-in duration-300">
-                     <div className="p-6 rounded-full bg-emerald-100 text-emerald-600 mb-4 dark:bg-emerald-900/30 dark:text-emerald-400">
-                         <CheckCircle2 size={48} strokeWidth={3} />
+                 <div className="py-8 flex flex-col items-center justify-center animate-in zoom-in fade-in duration-300">
+                     <div className="p-4 rounded-full bg-emerald-100 text-emerald-600 mb-2 dark:bg-emerald-900/30 dark:text-emerald-400">
+                         <CheckCircle2 size={32} strokeWidth={3} />
                      </div>
-                     <h3 className={`text-xl font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>¡Registro Guardado!</h3>
-                     <p className="text-slate-400 text-xs mt-2">Actualizando tu balance...</p>
+                     <h3 className={`text-sm font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>¡Guardado!</h3>
                  </div>
              ) : (
                  <>
-                     {/* PASO 1: SELECCIÓN DE TIPO */}
+                     {/* PASO 1: SELECCIÓN DE TIPO (DISEÑO HORIZONTAL) */}
                      {!showForm ? (
-                         <div className="flex flex-col gap-4 h-full animate-in fade-in zoom-in-95 duration-300 justify-center">
+                         <div className="animate-in fade-in zoom-in-95 duration-300">
                              <div className="text-center pb-2">
-                                 <h4 className={`text-sm font-black uppercase tracking-widest ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>¿Qué deseas registrar?</h4>
+                                 <h4 className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>¿Qué deseas registrar?</h4>
                              </div>
                              
-                            
-                             {/* BOTÓN INGRESO */}
-                             <button 
-                                onClick={() => handleStart('income')} 
-                                className={`group w-full relative rounded-3xl border-2 transition-all active:scale-95 flex items-center justify-between p-6 overflow-hidden ${useSemanticColors ? incomeStyle.containerClass : ''}`}
-                                style={useSemanticColors ? {} : incomeStyle.containerStyle}
-                             >
-                                 <div className="relative z-10 text-left">
-                                     <span className={`block text-xs font-bold uppercase mb-1 ${useSemanticColors ? incomeStyle.textSmall : ''}`} style={useSemanticColors ? {} : incomeStyle.textSmallStyle}>Registrar</span>
-                                     <span className={`text-3xl font-black ${useSemanticColors ? incomeStyle.textBig : ''}`} style={useSemanticColors ? {} : incomeStyle.textBigStyle}>INGRESO</span>
-                                 </div>
-                                 <div 
-                                    className={`p-5 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12 ${useSemanticColors ? incomeStyle.iconCircle : ''}`}
-                                    style={useSemanticColors ? {} : incomeStyle.iconCircleStyle}
+                             {/* CAMBIO 2: GRID DE 2 COLUMNAS (LADO A LADO) */}
+                             <div className="grid grid-cols-2 gap-3">
+                                 
+                                 {/* BOTÓN INGRESO */}
+                                 <button 
+                                    onClick={() => handleStart('income')} 
+                                    // Diseño interno vertical (flex-col) para que quede compacto
+                                    className={`group relative rounded-2xl border-2 transition-all active:scale-95 flex flex-col items-center justify-center p-4 gap-2 ${useSemanticColors ? incomeStyle.containerClass : ''}`}
+                                    style={useSemanticColors ? {} : incomeStyle.containerStyle}
                                  >
-                                     <TrendingUp size={32} strokeWidth={2.5} />
-                                 </div>
-                             </button>
+                                     <div 
+                                        className={`p-3 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12 ${useSemanticColors ? incomeStyle.iconCircle : ''}`}
+                                        style={useSemanticColors ? {} : incomeStyle.iconCircleStyle}
+                                     >
+                                         <TrendingUp size={20} strokeWidth={3} />
+                                     </div>
+                                     <span className={`text-sm font-black uppercase ${useSemanticColors ? incomeStyle.textBig : ''}`} style={useSemanticColors ? {} : incomeStyle.textBigStyle}>INGRESO</span>
+                                 </button>
 
-                              {/* BOTÓN GASTO */}
-                             <button 
-                                onClick={() => handleStart('expense')} 
-                                className={`group w-full relative rounded-3xl border-2 transition-all active:scale-95 flex items-center justify-between p-6 overflow-hidden ${useSemanticColors ? expenseStyle.containerClass : ''}`}
-                                style={useSemanticColors ? {} : expenseStyle.containerStyle}
-                             >
-                                 <div className="relative z-10 text-left">
-                                     <span className={`block text-xs font-bold uppercase mb-1 ${useSemanticColors ? expenseStyle.textSmall : ''}`} style={useSemanticColors ? {} : expenseStyle.textSmallStyle}>Registrar</span>
-                                     <span className={`text-3xl font-black ${useSemanticColors ? expenseStyle.textBig : ''}`} style={useSemanticColors ? {} : expenseStyle.textBigStyle}>GASTO</span>
-                                 </div>
-                                 <div 
-                                    className={`p-5 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-12 ${useSemanticColors ? expenseStyle.iconCircle : ''}`}
-                                    style={useSemanticColors ? {} : expenseStyle.iconCircleStyle}
+                                 {/* BOTÓN GASTO */}
+                                 <button 
+                                    onClick={() => handleStart('expense')} 
+                                    className={`group relative rounded-2xl border-2 transition-all active:scale-95 flex flex-col items-center justify-center p-4 gap-2 ${useSemanticColors ? expenseStyle.containerClass : ''}`}
+                                    style={useSemanticColors ? {} : expenseStyle.containerStyle}
                                  >
-                                     <TrendingDown size={32} strokeWidth={2.5} />
-                                 </div>
-                             </button>
-
+                                     <div 
+                                        className={`p-3 rounded-full transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-12 ${useSemanticColors ? expenseStyle.iconCircle : ''}`}
+                                        style={useSemanticColors ? {} : expenseStyle.iconCircleStyle}
+                                     >
+                                         <TrendingDown size={20} strokeWidth={3} />
+                                     </div>
+                                     <span className={`text-sm font-black uppercase ${useSemanticColors ? expenseStyle.textBig : ''}`} style={useSemanticColors ? {} : expenseStyle.textBigStyle}>GASTO</span>
+                                 </button>
+                             </div>
                          </div>
                      ) : (
-                         /* PASO 2: EL FORMULARIO COMPLETO */
-                         <form onSubmit={handleSubmit} className="flex flex-col gap-3 flex-1 animate-in slide-in-from-bottom-8 duration-300">
+                         /* PASO 2: EL FORMULARIO (COMPACTO) */
+                         <form onSubmit={handleSubmit} className="flex flex-col gap-2 flex-1 animate-in slide-in-from-bottom-4 duration-300">
                             
                             {/* Header y Back */}
-                            <div className="flex items-center gap-3 mb-2">
-                                {!editingItem && (
-                                    <button type="button" onClick={() => setShowForm(false)} className={`p-2 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
-                                        <ArrowLeft size={18} strokeWidth={3}/>
-                                    </button>
-                                )}
-                                {/* Etiqueta Superior */}
-                                <span 
-                                    className="text-xs font-black uppercase px-3 py-1 rounded-md"
-                                    style={{
-                                        backgroundColor: useSemanticColors 
-                                            ? (type === 'expense' ? (darkMode ? '#88133740' : '#ffe4e6') : (darkMode ? '#064e3b40' : '#d1fae5'))
-                                            : `${themeColor}20`,
-                                        color: useSemanticColors
-                                            ? (type === 'expense' ? (darkMode ? '#fda4af' : '#e11d48') : (darkMode ? '#6ee7b7' : '#059669'))
-                                            : themeColor
-                                    }}
-                                >
-                                    {type === 'expense' ? 'Nuevo Gasto' : 'Nuevo Ingreso'}
-                                </span>
+                            <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2">
+                                    {!editingItem && (
+                                        <button type="button" onClick={() => setShowForm(false)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-100 text-slate-500'}`}>
+                                            <ArrowLeft size={16} strokeWidth={3}/>
+                                        </button>
+                                    )}
+                                    <span 
+                                        className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md"
+                                        style={{
+                                            backgroundColor: useSemanticColors 
+                                                ? (type === 'expense' ? (darkMode ? '#88133740' : '#ffe4e6') : (darkMode ? '#064e3b40' : '#d1fae5'))
+                                                : `${themeColor}20`,
+                                            color: useSemanticColors
+                                                ? (type === 'expense' ? (darkMode ? '#fda4af' : '#e11d48') : (darkMode ? '#6ee7b7' : '#059669'))
+                                                : themeColor
+                                        }}
+                                    >
+                                        {type === 'expense' ? 'Nuevo Gasto' : 'Nuevo Ingreso'}
+                                    </span>
+                                </div>
                             </div>
 
                             {/* FILA 1: CUENTA + CATEGORÍA */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Wallet size={10}/> Cuenta</label>
-                                    <select value={walletId || ""} onChange={e => setWalletId(e.target.value)} className="w-full p-3 rounded-xl text-xs font-bold outline-none border cursor-pointer transition-shadow duration-200" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <select value={walletId || ""} onChange={e => setWalletId(e.target.value)} className="w-full p-2 rounded-lg text-xs font-bold outline-none border cursor-pointer" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
                                         {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Tag size={10}/> Categoría</label>
-                                    <div className="flex gap-1">
-                                        <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-3 rounded-xl text-xs font-bold outline-none border cursor-pointer transition-shadow duration-200" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
-                                            {currentCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                                        </select>
-                                        <button type="button" className={`px-3 rounded-xl border ${darkMode ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-slate-100'}`}><Plus size={14}/></button>
-                                    </div>
+                                <div>
+                                    <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 rounded-lg text-xs font-bold outline-none border cursor-pointer" style={inputStyle} onFocus={handleFocus} onBlur={handleBlur}>
+                                        {currentCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
                                 </div>
                             </div>
 
-                            {/* FILA 2: FECHA */}
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><Calendar size={10}/> Fecha</label>
-                                <input 
-                                    type="date"
-                                    className="w-full p-3 rounded-xl text-xs font-bold outline-none border transition-shadow duration-200" 
-                                    style={inputStyle}
-                                    onFocus={handleFocus} onBlur={handleBlur}
-                                    value={date || ''}
-                                    onChange={e => setDate(e.target.value)}
-                                />
+                            {/* FILA 2: ITEM + FECHA */}
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="col-span-2">
+                                    <input 
+                                        placeholder="Concepto (Ej: Uber)" 
+                                        className="w-full p-2 rounded-lg text-xs font-bold outline-none border" 
+                                        style={inputStyle}
+                                        onFocus={handleFocus} onBlur={handleBlur}
+                                        value={itemName || ''}
+                                        onChange={e => setItemName(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="col-span-1">
+                                    <input 
+                                        type="date"
+                                        className="w-full p-2 rounded-lg text-[10px] font-bold outline-none border" 
+                                        style={inputStyle}
+                                        onFocus={handleFocus} onBlur={handleBlur}
+                                        value={date || ''}
+                                        onChange={e => setDate(e.target.value)}
+                                    />
+                                </div>
                             </div>
 
-                            {/* FILA 3: ITEM (NOMBRE CORTO) */}
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1 flex items-center gap-1"><FileText size={10}/> Item</label>
+                            {/* FILA 3: VALOR */}
+                            <div className="relative">
                                 <input 
-                                    placeholder={type === 'expense' ? "Ej: Almuerzo, Uber, Netflix" : "Ej: Nómina Enero, Venta Garage"} 
-                                    className="w-full p-3 rounded-xl text-sm font-bold outline-none border transition-shadow duration-200" 
+                                    type="number" 
+                                    placeholder="0.00" 
+                                    className="w-full p-3 pl-6 rounded-xl text-xl font-black outline-none border text-center" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
-                                    value={itemName || ''}
-                                    onChange={e => setItemName(e.target.value)}
-                                    autoFocus
+                                    value={amount || ''}
+                                    onChange={e => setAmount(e.target.value)}
                                 />
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-lg">$</span>
                             </div>
-
-                            {/* FILA 4: DETALLES (OPCIONAL) */}
-                            <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Detalle (Opcional)</label>
+                            
+                            {/* CAMPO DETALLE (RESTITUIDO) */}
+                            <div className="relative">
                                 <input 
-                                    placeholder="Notas adicionales..." 
-                                    className="w-full p-3 rounded-xl text-xs outline-none border transition-shadow duration-200" 
+                                    placeholder="Nota o Detalle (Opcional)" 
+                                    className="w-full p-2 rounded-lg text-[10px] font-bold outline-none border transition-shadow" 
                                     style={inputStyle}
                                     onFocus={handleFocus} onBlur={handleBlur}
                                     value={description || ''}
@@ -351,23 +334,9 @@ const handleSubmit = (e) => {
                                 />
                             </div>
 
-                            {/* FILA 5: VALOR */}
-                            <div className="space-y-1 relative mt-2">
-                                <input 
-                                    type="number" 
-                                    placeholder="0.00" 
-                                    className="w-full p-4 pl-8 rounded-xl text-3xl font-black outline-none border transition-shadow duration-200" 
-                                    style={inputStyle}
-                                    onFocus={handleFocus} onBlur={handleBlur}
-                                    value={amount || ''}
-                                    onChange={e => setAmount(e.target.value)}
-                                />
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl">$</span>
-                            </div>
-
                             <button 
-                                type="submit" // Importante: type submit
-                                className="w-full py-4 rounded-xl text-white font-black text-sm uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all mt-auto"
+                                type="submit" 
+                                className="w-full py-3 rounded-xl text-white font-black text-xs uppercase tracking-widest shadow-lg hover:brightness-110 active:scale-95 transition-all mt-1"
                                 style={{
                                     backgroundColor: useSemanticColors 
                                         ? (type === 'expense' ? '#f43f5e' : '#10b981') 
@@ -375,7 +344,7 @@ const handleSubmit = (e) => {
                                     boxShadow: `0 10px 15px -3px ${useSemanticColors ? (type === 'expense' ? '#f43f5e40' : '#10b98140') : themeColor + '40'}`
                                 }}
                             >
-                                {editingItem ? 'Actualizar' : 'Guardar Registro'}
+                                {editingItem ? 'Actualizar' : 'Guardar'}
                             </button>
                          </form>
                      )}
@@ -383,44 +352,44 @@ const handleSubmit = (e) => {
              )}
           </div>
       ) : (
-          // CONTENIDO 2: RESUMEN DEL PERIODO
-          <div className="flex flex-col gap-3 flex-1 animate-in fade-in slide-in-from-right-4">
-              {/* Cards de Resumen */}
-              <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all hover:scale-[1.02] ${darkMode ? 'bg-emerald-900/10 border-emerald-900/30' : 'bg-emerald-50 border-emerald-100'}`}>
-                  <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><TrendingUp size={24}/></div>
+          // CONTENIDO 2: RESUMEN DEL PERIODO (COMPACTO HORIZONTAL)
+          <div className="flex flex-col gap-2 flex-1 animate-in fade-in slide-in-from-right-4">
+              
+              {/* CAMBIO 3: GRID PARA RESUMEN */}
+              <div className="grid grid-cols-2 gap-2">
+                  <div className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all ${darkMode ? 'bg-emerald-900/10 border-emerald-900/30' : 'bg-emerald-50 border-emerald-100'}`}>
+                      <div className={`p-1.5 rounded-full ${darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><TrendingUp size={16}/></div>
                       <div>
-                          <p className="text-[10px] font-bold uppercase text-slate-400">Ingresos del Periodo</p>
-                          <p className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.income)}</p>
+                          <p className="text-[9px] font-bold uppercase text-slate-400">Ingresos</p>
+                          <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.income)}</p>
                       </div>
                   </div>
-              </div>
 
-              <div className={`p-4 rounded-2xl border flex items-center justify-between transition-all hover:scale-[1.02] ${darkMode ? 'bg-rose-900/10 border-rose-900/30' : 'bg-rose-50 border-rose-100'}`}>
-                  <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${darkMode ? 'bg-rose-900/30 text-rose-400' : 'bg-rose-100 text-rose-600'}`}><TrendingDown size={24}/></div>
+                  <div className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all ${darkMode ? 'bg-rose-900/10 border-rose-900/30' : 'bg-rose-50 border-rose-100'}`}>
+                      <div className={`p-1.5 rounded-full ${darkMode ? 'bg-rose-900/30 text-rose-400' : 'bg-rose-100 text-rose-600'}`}><TrendingDown size={16}/></div>
                       <div>
-                          <p className="text-[10px] font-bold uppercase text-slate-400">Gastos del Periodo</p>
-                          <p className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.expense)}</p>
+                          <p className="text-[9px] font-bold uppercase text-slate-400">Gastos</p>
+                          <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.expense)}</p>
                       </div>
                   </div>
               </div>
 
               {/* CARD BALANCE NETO */}
               <div 
-                className="mt-auto p-5 rounded-2xl border flex items-center justify-between relative overflow-hidden transition-colors duration-300"
+                className="p-3 rounded-xl border flex items-center justify-between relative overflow-hidden transition-colors duration-300"
                 style={{ 
                     backgroundColor: darkMode ? `${themeColor}15` : `${themeColor}10`,
                     borderColor: darkMode ? `${themeColor}30` : `${themeColor}20`
                 }}
               >
-                  <div className="relative z-10">
-                      <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Balance Neto (Flujo)</p>
-                      <p className="text-3xl font-black" style={{ color: themeColor }}>
+                  <div className="relative z-10 w-full text-center">
+                      <p className="text-[9px] font-bold uppercase text-slate-400 mb-0.5">Balance Neto</p>
+                      <p className="text-xl font-black" style={{ color: themeColor }}>
                           {privacyMode ? '****' : formatCurrency(analysisData.balance)}
                       </p>
                   </div>
-                  <Wallet className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12 text-slate-500"/>
+                  {/* Icono de fondo más sutil */}
+                  <Wallet className="absolute -right-2 -bottom-4 w-16 h-16 opacity-5 rotate-12 text-slate-500"/>
               </div>
           </div>
       )}

@@ -14,14 +14,13 @@ import { DateFilter } from './components/DateFilter';
 import { Modal } from './components/Modal';
 import { ProjectionModal } from './components/ProjectionModal';
 import { ThemeSelector } from './components/ThemeSelector';
-import { Moon, Sun, Eye, EyeOff, Palette, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket, Settings, X, DollarSign } from 'lucide-react';
+import { LogOut, UploadCloud,Moon, Sun, Eye, EyeOff, Palette, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket, Settings, X, DollarSign } from 'lucide-react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { formatCurrency } from './utils/formatters';
 import { EventsSection } from './layout/EventsSection';
 import { useAuth } from './context/AuthContext'; // <--- Importar esto
 import { Login } from './components/Login'; // <--- Importar Login
-import { LogOut } from 'lucide-react'; // <--- Importar icono de salir
-
+import ImportTransactions from './components/ImportTransactions';
 
 export default function App() {
 
@@ -38,7 +37,7 @@ export default function App() {
     companies, addCompany, updateCompany,
     addWallet, addGoal, addSubscription, addBudget,
     updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, setIsAllExpanded,
-    calculatePayDate,
+    calculatePayDate,totalBalance,selectedWalletId,
     
     // --- VARIABLES RESTAURADAS ---
     useSemanticColors, setUseSemanticColors, // <--- AQUÍ ESTÁ SEMÁNTICO
@@ -243,6 +242,27 @@ export default function App() {
 
   const modalInputStyle = { backgroundColor: darkMode ? '#1e293b' : '#f1f5f9', color: darkMode ? '#fff' : '#0f172a' };
 
+  // --- LÓGICA INTELIGENTE DEL HEADER (Adaptada de MainHero) ---
+  const activeWallet = React.useMemo(() => {
+    if (!selectedWalletId) return null;
+    return wallets.find(w => w.id === selectedWalletId);
+  }, [selectedWalletId, wallets]);
+
+  const headerData = React.useMemo(() => {
+      const isCredit = activeWallet?.type === 'credit';
+      const balance = activeWallet ? activeWallet.balance : totalBalance;
+      const name = activeWallet ? activeWallet.name : "Patrimonio Neto";
+      
+      // Cálculos de Crédito
+      const limit = isCredit ? (activeWallet.limit || 0) : 0;
+      const used = isCredit ? Math.abs(balance) : 0;
+      const available = limit - used;
+      const percent = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+
+      return { isCredit, balance, name, limit, used, available, percent };
+  }, [activeWallet, totalBalance]);
+
+
   return (
     <div 
       className={`min-h-screen pb-12 transition-colors duration-300 ${darkMode ? 'text-white' : 'text-slate-900'}`}
@@ -254,16 +274,51 @@ export default function App() {
     >  
 {/* --- HEADER NUEVO (EFECTO ESPEJO IPHONE + SIN ESPACIO ARRIBA) --- */}
 <div className={`sticky top-0 z-50 mb-6 px-6 py-4 rounded-b-3xl shadow-sm flex justify-between items-center transition-all backdrop-blur-xl border-b-[1px] ${darkMode ? 'bg-slate-950/50 border-white/5 text-white' : 'bg-white/40 border-white/40 text-slate-800'}`}> 
-        {/* IZQUIERDA: LOGO */}
-        <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white shadow-lg" style={{ backgroundColor: themeColor }}>
-              $
+            {/* IZQUIERDA: LOGO + HERO INTELIGENTE */}
+        <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0" style={{ backgroundColor: themeColor }}>
+                  $
+                </div>
+                <div className="flex flex-col">
+                    <h1 className="text-xl font-black tracking-tight leading-none">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
+                </div>
             </div>
-            <div className="flex flex-col">
-                <h1 className="text-xl font-black tracking-tight leading-none">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
+
+            <div className="h-8 w-px bg-slate-200 dark:bg-white/10 hidden sm:block"></div>
+
+            {/* --- HERO INTEGRADO (CON BARRA DE CRÉDITO) --- */}
+            <div className="flex flex-col justify-center hidden sm:flex animate-in fade-in slide-in-from-left-4 min-w-[140px]">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
+                    {headerData.name}
+                </span>
+                
+                <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black leading-none" style={{ color: darkMode ? 'white' : themeColor }}>
+                        {privacyMode ? '****' : formatCurrency(headerData.balance)}
+                    </span>
+                    {/* Si es crédito, mostramos el disponible pequeño al lado */}
+                    {headerData.isCredit && !privacyMode && (
+                        <span className="text-xs font-bold text-slate-400">
+                            (Disp: {formatCurrency(headerData.available)})
+                        </span>
+                    )}
+                </div>
+
+                {/* BARRA DE PROGRESO (SOLO SI ES CRÉDITO) */}
+                {headerData.isCredit && (
+                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-1 overflow-hidden">
+                        <div 
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ 
+                                width: `${headerData.percent}%`,
+                                backgroundColor: themeColor 
+                            }}
+                        />
+                    </div>
+                )}
             </div>
         </div>
-
         {/* DERECHA: GRUPO DE ACCIONES (Menú Desplegable + Ajustes + Salir) */}
         <div className="flex items-center gap-2">
             
@@ -303,7 +358,14 @@ export default function App() {
                     </button>
                 </div>
             </div>
-
+            {/* NUEVO BOTÓN: IMPORTAR TRANSACCIONES */}
+            <button 
+              onClick={() => handleOpenModal('import')}
+              className={`p-2 rounded-full transition-all text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-500`}
+              title="Importar CSV Banco"
+            >
+              <UploadCloud size={20}/>
+            </button>
             {/* 2. BOTÓN AJUSTES (SOLO RUEDITA) */}
             <button 
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -329,14 +391,14 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* COLUMNA IZQUIERDA (Estrecha) */}
           <div className="lg:col-span-4 space-y-6">
-            <MainHero />
+            {/* ❌ AQUÍ BORRAMOS <MainHero />*/}
+            <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
             <div className="flex flex-col gap-6">{leftOrder.map((key, index) => renderLeftSection(key, index))}</div>
           </div>
           
           {/* COLUMNA DERECHA (Ancha) */}
           <div className="lg:col-span-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
               <FinancialCharts onOpenProjection={() => setProjectionOpen(true)} />
             </div>
             {/* Lista dinámica derecha */}
@@ -375,6 +437,25 @@ export default function App() {
         {modalType === 'sub' && ( <form onSubmit={handleSaveSub} className="space-y-4"> <div className="flex justify-center mb-4"><div className="p-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-full text-indigo-600"><Calendar size={32}/></div></div> <input autoFocus className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Servicio" value={newSubName} onChange={e => setNewSubName(e.target.value)} /> <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Precio" value={newSubPrice} onChange={e => setNewSubPrice(e.target.value)} /> <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Día" value={newSubDay} onChange={e => setNewSubDay(e.target.value)} /> <button className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl">{itemToEdit ? 'ACTUALIZAR' : 'CREAR'}</button> </form> )}
         {modalType === 'budget' && ( <form onSubmit={handleSaveBudget} className="space-y-4"> <div className="flex justify-center mb-4"><div className="p-4 bg-rose-100 dark:bg-rose-900/30 rounded-full text-rose-500"><PieChart size={32}/></div></div> <select className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} value={newBudgetCat} onChange={e => setNewBudgetCat(e.target.value)} disabled={!!itemToEdit}> {categories.map(c => <option key={c} value={c}>{c}</option>)} </select> <input type="number" autoFocus className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Límite" value={newBudgetLimit} onChange={e => setNewBudgetLimit(e.target.value)} /> <button className="w-full py-4 bg-rose-500 text-white font-black rounded-xl">{itemToEdit ? 'ACTUALIZAR' : 'CREAR'}</button> </form> )}
         {modalType === 'category' && ( <form onSubmit={handleSaveCategory} className="space-y-4"> <div className="flex justify-center mb-4"><div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600"><Tag size={32}/></div></div> <label className="text-xs uppercase font-bold text-slate-500">Editar nombre de categoría</label> <input autoFocus className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} value={catName} onChange={e => setCatName(e.target.value)} /> <p className="text-[10px] text-slate-400">Nota: Esto actualizará el nombre en todo tu historial.</p> <button className="w-full py-4 bg-slate-800 text-white font-black rounded-xl">RENOMBRAR</button> </form> )}
+      
+        {modalType === 'import' && (
+           <div className="animate-in fade-in zoom-in duration-300">
+              <div className="flex justify-center mb-4">
+                  <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-full text-emerald-600">
+                      <UploadCloud size={32}/>
+                  </div>
+              </div>
+              <p className="text-center text-sm text-slate-500 mb-4">
+                  Sube tu archivo CSV del banco para categorizar automáticamente.
+              </p>
+              
+              {/* Aquí renderizamos tu componente nuevo */}
+              <ImportTransactions 
+                  onClose={closeModal} // Opcional: para que se cierre al terminar
+              />
+           </div>
+        )}
+      
       </Modal>
 
       <ProjectionModal isOpen={projectionOpen} onClose={() => setProjectionOpen(false)} />

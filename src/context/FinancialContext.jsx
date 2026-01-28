@@ -630,7 +630,7 @@ const deleteTransaction = async (id, type) => {
         const tx = list.find(t => t.id === id);
 
         // 2. Borramos de Supabase SIEMPRE (exista la wallet o no)
-        const { error } = await supabase.from('transactions').delete().eq('id', id);
+        const { error } = await supabase.from('transactions').delete().eq('id', id).select();
         
         if (error) {
             console.error("Error borrando:", error);
@@ -1054,7 +1054,7 @@ const unmarkWorkAsPaid = (log) => updateWorkLog({
         date: today
     };
 
-    const { error: txError } = await supabase.from('transactions').insert([transactionData]);
+    const { error: txError } = await supabase.from('transactions').insert([transactionData]).select();
     
     if (txError) {
         console.error("Error creando ingreso:", txError);

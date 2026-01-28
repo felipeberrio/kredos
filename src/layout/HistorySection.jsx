@@ -5,9 +5,9 @@ import { formatCurrency } from '../utils/formatters';
 import { ArrowUpCircle, ArrowDownCircle, Trash2, Edit3, Tag, Filter, ArrowUpDown, Wallet, RefreshCw, ChevronUp, ChevronDown, Minus, Maximize2, History } from 'lucide-react';
 
 export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
-  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, dateFilter, themeColor, darkMode, isAllExpanded } = useFinancial();
+  // 1. AGREGAMOS 'incomeCategories' AQUÍ
+  const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, incomeCategories, dateFilter, themeColor, darkMode, isAllExpanded, selectedCategory, selectedWalletId } = useFinancial();
   
-  // Estados de UI
   const [isExpanded, setIsExpanded] = useState(true);
   useEffect(() => {
     setIsExpanded(isAllExpanded);
@@ -18,42 +18,49 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
   const [localCategory, setLocalCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
 
-  // --- LÓGICA CORREGIDA DE SALDO HISTÓRICO ---
+  // Sincronización con Dashboard Global
+  useEffect(() => {
+      setLocalCategory(selectedCategory || 'all');
+  }, [selectedCategory]);
+
+  useEffect(() => {
+      setLocalWallet(selectedWalletId || 'all');
+  }, [selectedWalletId]);
+
+
   const processedTransactions = useMemo(() => {
-    // 1. Unificar todas las transacciones base
     let allTransactions = [
       ...filteredIncomes.map(i => ({ ...i, type: 'income' })),
       ...filteredExpenses.map(e => ({ ...e, type: 'expense' }))
     ];
 
-    // 2. APLICAR FILTROS PRIMERO (Para que el saldo tenga sentido en el contexto filtrado)
     if (localWallet !== 'all') {
         allTransactions = allTransactions.filter(t => t.walletId === localWallet);
     }
 
+    // Filtro de Categoría (MEJORADO)
     if (localCategory !== 'all') {
-        allTransactions = allTransactions.filter(t => (t.category || 'Otros') === localCategory);
+        if (localCategory === 'only_incomes') {
+            // Caso 1: Solo Ingresos
+            allTransactions = allTransactions.filter(t => t.type === 'income');
+        } else if (localCategory === 'only_expenses') {
+            // Caso 2: Solo Gastos
+            allTransactions = allTransactions.filter(t => t.type === 'expense');
+        } else {
+            // Caso 3: Categoría Específica (Comportamiento original)
+            allTransactions = allTransactions.filter(t => (t.category || 'Otros') === localCategory);
+        }
     }
 
-    // 3. ORDENAR CRONOLÓGICAMENTE (Antiguo -> Nuevo) para calcular el saldo
-    // Clonamos para no afectar el array original si se reusa
     const chronologicallySorted = [...allTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // 4. CALCULAR SALDO ACUMULADO (Running Balance)
-    // Si estamos filtrando por una cuenta específica, intentamos obtener su saldo inicial si fuera posible
-    // (Por ahora asumimos flujo 0, pero será consistente dentro del filtro)
     let runningBalance = 0;
-    
-    // Mapeamos sobre el array ordenado cronológicamente
     const transactionsWithBalance = chronologicallySorted.map(t => {
         if (t.type === 'income') runningBalance += Number(t.amount);
         else runningBalance -= Number(t.amount);
         return { ...t, balanceAfter: runningBalance };
     });
 
-    // 5. APLICAR ORDENAMIENTO DE VISUALIZACIÓN FINAL
-    // Ahora que cada transacción tiene su 'balanceAfter' calculado correctamente en secuencia,
-    // podemos reordenarlas para mostrarlas como el usuario quiera (ej: más recientes primero)
     return transactionsWithBalance.sort((a, b) => {
       switch (sortOrder) {
         case 'oldest': return new Date(a.date) - new Date(b.date);
@@ -65,6 +72,22 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
 
   }, [filteredIncomes, filteredExpenses, localWallet, localCategory, sortOrder]);
 
+  const handleBulkDelete = async () => {
+    const count = processedTransactions.length;
+    if (count === 0) return;
+
+    // Mensaje de advertencia dinámico
+    const warningMsg = (localWallet === 'all' && localCategory === 'all')
+        ? `⚠️ ¡PELIGRO! Estás a punto de borrar TODO el historial visible (${count} transacciones).\n\n¿Estás realmente seguro?`
+        : `⚠️ ¿Estás seguro de borrar las ${count} transacciones filtradas?`;
+
+    if (window.confirm(warningMsg)) {
+        for (const t of processedTransactions) {
+            await deleteTransaction(t.id, t.type);
+        }
+    }
+  };
+
   const selectStyle = {
     backgroundColor: darkMode ? '#1e293b' : '#f8fafc',
     color: darkMode ? '#fff' : '#475569',
@@ -73,7 +96,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
 
   return (
     <Card className="transition-all duration-300">
-      {/* HEADER PRINCIPAL */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex flex-col">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
@@ -86,7 +108,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
             )}
         </div>
 
-        {/* CONTROLES DE LA TARJETA (MOVER/MINIMIZAR) */}
         <div className="flex items-center gap-1">
             <div className="flex flex-col mr-1">
                 {!isFirst && <button onClick={onMoveUp} className="text-slate-300 hover:text-slate-500"><ChevronUp size={10} strokeWidth={3}/></button>}
@@ -103,8 +124,7 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
             
             {/* BARRA DE FILTROS */}
             <div className="flex flex-wrap gap-2 mb-4">
-                {/* Filtro Wallet */}
-                <div className="relative flex-1 min-w-[120px]">
+                <div className="relative flex-1 min-w-[100px]">
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Wallet size={12}/></div>
                     <select value={localWallet} onChange={(e) => setLocalWallet(e.target.value)} className="w-full pl-7 pr-2 py-1.5 rounded-lg text-[10px] font-bold outline-none border appearance-none cursor-pointer hover:border-blue-400 transition-colors" style={selectStyle}>
                         <option value="all">Todas las Cuentas</option>
@@ -112,17 +132,26 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                     </select>
                 </div>
 
-                {/* Filtro Categoría */}
-                <div className="relative flex-1 min-w-[120px]">
+                <div className="relative flex-1 min-w-[100px]">
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><Tag size={12}/></div>
                     <select value={localCategory} onChange={(e) => setLocalCategory(e.target.value)} className="w-full pl-7 pr-2 py-1.5 rounded-lg text-[10px] font-bold outline-none border appearance-none cursor-pointer hover:border-blue-400 transition-colors" style={selectStyle}>
                         <option value="all">Todas las Categorías</option>
-                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="only_incomes" className="font-bold text-emerald-600">💰 Solo Ingresos</option>
+                        <option value="only_expenses" className="font-bold text-rose-600">📉 Solo Gastos</option>
+                        <option disabled>────────────────</option>
+                        {/* --- MOSTRAMOS INGRESOS Y GASTOS SEPARADOS --- */}
+                        <optgroup label="--- INGRESOS ---">
+                            {incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                        </optgroup>
+                        
+                        <optgroup label="--- GASTOS ---">
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                        </optgroup>
+
                     </select>
                 </div>
 
-                {/* Ordenamiento */}
-                <div className="relative flex-1 min-w-[120px]">
+                <div className="relative flex-1 min-w-[100px]">
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"><ArrowUpDown size={12}/></div>
                     <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full pl-7 pr-2 py-1.5 rounded-lg text-[10px] font-bold outline-none border appearance-none cursor-pointer hover:border-blue-400 transition-colors" style={selectStyle}>
                         <option value="newest">Más Recientes</option>
@@ -132,10 +161,22 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                     </select>
                 </div>
 
-                {/* Reset */}
+                {/* BOTÓN RESET */}
                 {(localWallet !== 'all' || localCategory !== 'all' || sortOrder !== 'newest') && (
-                    <button onClick={() => { setLocalWallet('all'); setLocalCategory('all'); setSortOrder('newest'); }} className="p-1.5 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors" title="Limpiar Filtros">
+                    <button onClick={() => { setLocalWallet('all'); setLocalCategory('all'); setSortOrder('newest'); }} className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors" title="Limpiar Filtros">
                         <RefreshCw size={14}/>
+                    </button>
+                )}
+
+                 {/* 3. BOTÓN BORRADO MASIVO (SIEMPRE VISIBLE SI HAY DATOS) */}
+                 {processedTransactions.length > 0 && (
+                    <button 
+                        onClick={handleBulkDelete} 
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 hover:border-rose-300 transition-all shadow-sm"
+                        title="Borrar todas las transacciones visibles"
+                    >
+                        <Trash2 size={12} />
+                        <span className="text-[10px] font-bold">Borrar ({processedTransactions.length})</span>
                     </button>
                 )}
             </div>
@@ -153,35 +194,35 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                 const walletName = wallets.find(w => w.id === t.walletId)?.name || 'Cuenta borrada';
                 return (
                     <div key={t.id} className={`flex items-center justify-between group p-3 rounded-2xl transition-all border ${darkMode ? 'hover:bg-slate-800/50 border-transparent hover:border-slate-700 text-white' : 'bg-white hover:bg-slate-50 border-slate-100 text-slate-800 shadow-sm'}`}>
-                        <div className="flex items-center gap-4">
-                            <div className={`p-3 rounded-2xl ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                        <div className="flex items-center gap-4 overflow-hidden">
+                            <div className={`p-3 rounded-2xl shrink-0 ${t.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
                             {t.type === 'income' ? <ArrowUpCircle size={20}/> : <ArrowDownCircle size={20}/>}
                             </div>
-                            <div>
-                            <div className="flex items-center gap-2">
-                                <p className={`text-sm font-bold ${darkMode ? 'text-white' : 'text-slate-800'}`}>{t.name}</p>
+                            <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <p className={`text-sm font-bold truncate ${darkMode ? 'text-white' : 'text-slate-800'}`}>{t.name}</p>
+                                
                                 {t.category && (
-                                    <span className="text-[9px] px-2 py-0.5 rounded-md border font-bold uppercase flex items-center gap-1 shadow-sm" style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: darkMode ? `${themeColor}10` : '#ffffff' }}>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-md border font-bold uppercase flex items-center gap-1 shadow-sm whitespace-nowrap shrink-0" style={{ color: themeColor, borderColor: `${themeColor}40`, backgroundColor: darkMode ? `${themeColor}10` : '#ffffff' }}>
                                         <Tag size={8}/> {t.category}
                                     </span>
                                 )}
-                                {/* --- COMIENZO DEL CAMBIO PARA EL DETALLE --- */}
-                                {t.description && (
-                                    <p className={`text-[11px] mt-0.5 leading-tight ${darkMode ? 'text-slate-500' : 'text-slate-400'} italic line-clamp-1`}>
-                                        {t.description}
-                                    </p>
-                                )}
                             </div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{t.date} • {walletName}</p>
+                            
+                            {t.description && (
+                                <p className={`text-[11px] mt-0.5 leading-tight ${darkMode ? 'text-slate-500' : 'text-slate-400'} italic line-clamp-1`}>
+                                    {t.description}
+                                </p>
+                            )}
+                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 truncate">{t.date} • {walletName}</p>
                             </div>
                         </div>
                         
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 shrink-0 pl-2">
                             <div className="text-right">
                                 <span className={`font-black text-sm block ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
                                     {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                                 </span>
-                                {/* SALDO RESULTANTE (Ahora consistente con el filtro) */}
                                 <span className="block text-[10px] text-slate-400 font-medium mt-0.5 opacity-60">
                                     {formatCurrency(t.balanceAfter)}
                                 </span>
