@@ -4,15 +4,21 @@ export const DEFAULT_EXPENSE_CATS = [
   "🏠 Vivienda",
   "🍔 Comida",
   "🚌 Transporte",
-  "💊 Salud",
-  "🎉 Ocio",
-  "📺 Suscripciones",
+  "💊 Salud y Bienestar",
+  "💪🏻 Personal Care",
+  "📺 Entretenimiento",
   "📱 Tecnología",
-  "🛒 Supermercado",
-  "🎓 Educación",      // Agregué estas para llegar a mas opciones si quieres
-  "💡 Servicios",
+  "💞 Relaciones y regalos",
+  "🎓 Educación y Desarrollo",      // Agregué estas para llegar a mas opciones si quieres
+  "🏦 Bank",
   "👕 Ropa",
   "⁉️ Deudas y compromisos",
+  "👛 Ahorro",
+  "📈 Inversiones",
+  "😥 Varios o imprevistos",
+  "💵 Negocios/Freelance",
+  "💼 Trabajo",
+  "❔ N/A",
 ];
 
 export const DEFAULT_INCOME_CATS = [

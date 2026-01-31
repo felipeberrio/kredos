@@ -24,8 +24,7 @@ export const GoalsSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit, on
   });
 
   return (
-    <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-full min-h-[300px]' : 'h-auto'}`}>
-      
+    <Card className={`overflow-hidden flex flex-col transition-all duration-500 ${isExpanded ? 'h-auto' : 'h-auto'}`}>        
       {/* --- HEADER ESTANDARIZADO --- */}
       <div className="flex justify-between items-center mb-4">
         

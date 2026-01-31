@@ -40,15 +40,15 @@ export const CategoriesSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdi
         <div className="flex justify-between items-center mb-4">
             {/* IZQUIERDA: ÍCONO Y TÍTULO */}
             <div className="flex items-center gap-3">
-                <div className="flex flex-col">
-                    <div className={`p-2 rounded-xl shrink-0${darkMode ?'bg-slate-800 text-blue-400' : 'bg-blue-50 text-blue-500'}`}>
+  
+                    <div className={` rounded-xl shrink-0${darkMode ?'bg-slate-800 text-blue-400' : 'bg-blue-50 text-blue-500'}`}>
                         <Tag size={14} />
                     </div>
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         CATEGORÍAS 
                     </h3>
                     <span className="text-[9px] font-bold text-slate-400 uppercase">{currentList.length} Categorías</span>
-                </div>
+
             </div>
             {/* DERECHA: CONTROLES (ORDENAR -> MINIMIZAR -> AGREGAR) */}
             <div className="flex items-center gap-3">
@@ -150,17 +150,12 @@ export const CategoriesSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdi
                 </form>
             )}
             {/* LISTA DE CATEGORÍAS */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 m-2">
                 {currentList.map(cat => (
                 <div 
                     key={cat} 
-                    className="group flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg border text-[10px] font-bold uppercase tracking-wide transition-all hover:pr-1 cursor-default shadow-sm hover:shadow-md"
-                    style={{ 
-                        color: themeColor, 
-                        borderColor: `${themeColor}40`, 
-                        // Fondo sutil del color del tema
-                        backgroundColor: darkMode ? `${themeColor}10` : '#ffffff' 
-                    }}
+                    className="group flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-lg border text-[10px] font-medium uppercase tracking-wide transition-all hover:pr-1 cursor-default shadow-sm hover:shadow-md"
+                    style={{ themeColor : 'transparent', backgroundColor: darkMode ? '#1e293b' : '#f1f5f9' }}
                 >
                     {cat}
                     

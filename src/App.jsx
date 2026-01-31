@@ -14,13 +14,16 @@ import { DateFilter } from './components/DateFilter';
 import { Modal } from './components/Modal';
 import { ProjectionModal } from './components/ProjectionModal';
 import { ThemeSelector } from './components/ThemeSelector';
-import { LogOut, UploadCloud,Moon, Sun, Eye, EyeOff, Palette, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket, Settings, X, DollarSign } from 'lucide-react';
+import { User,LogOut, UploadCloud,Moon, Sun, Eye, EyeOff, Palette, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket, Settings, X, DollarSign, Menu, Pin, PinOff} from 'lucide-react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { formatCurrency } from './utils/formatters';
 import { EventsSection } from './layout/EventsSection';
 import { useAuth } from './context/AuthContext'; // <--- Importar esto
 import { Login } from './components/Login'; // <--- Importar Login
 import ImportTransactions from './components/ImportTransactions';
+import { supabase } from './supabaseClient';
+import { HeaderWallets } from './components/HeaderWallets';
+
 
 export default function App() {
 
@@ -51,7 +54,7 @@ export default function App() {
   }
   
   // ORDEN COLUMNA IZQUIERDA
-  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['wallets', 'categories', 'budgets', 'goals', 'subs']);
+  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['categories', 'budgets', 'goals', 'subs']);
   
   // ORDEN COLUMNA DERECHA
   const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v3', ['work', 'events', 'history']);
@@ -65,7 +68,10 @@ export default function App() {
 
   // ESTADO AJUSTES HEADER
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
+// NUEVO: Estado para el Menú Lateral de Secciones
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  // NUEVO: Estado para saber si el menú está "Fijado"
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   // INPUTS GENERALES
   const [newWalletName, setNewWalletName] = useState(''); const [newWalletBalance, setNewWalletBalance] = useState(''); const [newWalletType, setNewWalletType] = useState('cash'); const [newWalletLimit, setNewWalletLimit] = useState('');
   const [newGoalName, setNewGoalName] = useState(''); const [newGoalTarget, setNewGoalTarget] = useState(''); const [newGoalSaved, setNewGoalSaved] = useState('');
@@ -137,6 +143,7 @@ export default function App() {
   const handleOpenModal = (type, item = null) => { 
       setModalType(type); setItemToEdit(item); setModalOpen(true); cleanInputs();
       if (item) {
+          if(type === 'profile') {setProfileName(user?.user_metadata?.full_name || '');setProfilePassword('');}
           if(type === 'wallet') { setNewWalletName(item.name); setNewWalletBalance(item.balance); setNewWalletType(item.type); setNewWalletLimit(item.limit || ''); }
           if(type === 'goal') { setNewGoalName(item.name); setNewGoalTarget(item.target); setNewGoalSaved(item.saved); setNewGoalDeadline(item.deadline || ''); setNewGoalFrequency(item.frequency || 'monthly'); setNewGoalInstallment(item.installment || ''); setNewGoalStartDate(item.startDate || new Date().toISOString().split('T')[0]); }
           if(type === 'sub') { setNewSubName(item.name); setNewSubPrice(item.price); setNewSubDay(item.day); }
@@ -209,7 +216,6 @@ export default function App() {
   const renderLeftSection = (key, index) => {
     const props = { key, onMoveUp: () => moveLeftSection(index, 'up'), onMoveDown: () => moveLeftSection(index, 'down'), isFirst: index === 0, isLast: index === leftOrder.length - 1, onAdd: () => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : 'budget'), onEdit: (item) => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'categories' ? 'category' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : 'budget', item) };
     switch(key) {
-      case 'wallets': return <WalletSection {...props} />;
       case 'categories': return <CategoriesSection {...props} />;
       case 'goals': return <GoalsSection {...props} />;
       case 'subs': return <SubscriptionSection {...props} />;
@@ -242,6 +248,53 @@ export default function App() {
 
   const modalInputStyle = { backgroundColor: darkMode ? '#1e293b' : '#f1f5f9', color: darkMode ? '#fff' : '#0f172a' };
 
+  // ESTADOS PARA PERFIL DE USUARIO
+  const [profileName, setProfileName] = useState('');
+  const [profilePassword, setProfilePassword] = useState('');
+  
+  // Obtener nombre actual (o usar el email si no tiene nombre)
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario';
+
+  // FUNCIÓN REAL PARA ACTUALIZAR PERFIL
+  const handleUpdateProfile = async (e) => {
+      e.preventDefault();
+      
+      const updates = {};
+      
+      // 1. Solo agregamos lo que el usuario escribió
+      if (profileName && profileName !== displayName) {
+          updates.data = { full_name: profileName };
+      }
+      if (profilePassword) {
+          updates.password = profilePassword;
+      }
+
+      // Si no hay cambios, no hacemos nada
+      if (Object.keys(updates).length === 0) {
+          closeModal();
+          return;
+      }
+
+      try {
+          // 2. Enviamos los cambios a Supabase
+          const { error } = await supabase.auth.updateUser(updates);
+          
+          if (error) throw error;
+
+          alert("¡Perfil actualizado con éxito!");
+          
+          setProfilePassword(''); // Limpiamos la contraseña por seguridad
+          closeModal();
+          
+          // 3. Recargamos suavemente para ver el nuevo nombre reflejado en el header
+          window.location.reload(); 
+
+      } catch (error) {
+          console.error("Error al actualizar:", error);
+          alert("Error: " + error.message);
+      }
+  };
+
   // --- LÓGICA INTELIGENTE DEL HEADER (Adaptada de MainHero) ---
   const activeWallet = React.useMemo(() => {
     if (!selectedWalletId) return null;
@@ -272,55 +325,98 @@ export default function App() {
           : (darkMode ? '#020617' : `${themeColor}15`) // MODO TEMA: Tu color con 6% de opacidad 10` (Efecto Tinte)
       }}
     >  
-{/* --- HEADER NUEVO (EFECTO ESPEJO IPHONE + SIN ESPACIO ARRIBA) --- */}
-<div className={`sticky top-0 z-50 mb-6 px-6 py-4 rounded-b-3xl shadow-sm flex justify-between items-center transition-all backdrop-blur-xl border-b-[1px] ${darkMode ? 'bg-slate-950/50 border-white/5 text-white' : 'bg-white/40 border-white/40 text-slate-800'}`}> 
-            {/* IZQUIERDA: LOGO + HERO INTELIGENTE */}
-        <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0" style={{ backgroundColor: themeColor }}>
-                  $
+    {/* --- HEADER NUEVO (EFECTO ESPEJO IPHONE + SIN ESPACIO ARRIBA) --- */}
+    <div className={`sticky top-0 z-50 mb-6 px-6  rounded-b-3xl shadow-sm flex justify-between items-center transition-all backdrop-blur-xl border-b-[1px] ${darkMode ? 'bg-slate-950/50 border-white/5 text-white' : 'bg-white/40 border-white/40 text-slate-800'}`}> 
+        {/* --- HEADER UNIFICADO (HORIZONTAL + TRANSPARENTE) --- */}
+      
+        <div className="w-full px-4 py-2 h-16 flex items-center gap-4 overflow-hidden">
+            
+            {/* 1. SECCIÓN IZQUIERDA (ESTÁTICA) */}
+            <div className="flex items-center gap-4 shrink-0">
+                {/* Logo */}
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0" style={{ backgroundColor: themeColor }}>$</div>
+                    <h1 className="text-xl font-black tracking-tight leading-none hidden xl:block">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
                 </div>
-                <div className="flex flex-col">
-                    <h1 className="text-xl font-black tracking-tight leading-none">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
+
+                {/* Divisor */}
+                <div className="h-8 w-px bg-slate-200 dark:bg-white/10 hidden lg:block"></div>
+
+                {/* Usuario */}
+                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-white/5">
+                    <div className="p-1 rounded-full text-white" style={{ backgroundColor: themeColor }}><User size={12} strokeWidth={3}/></div>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{displayName}</span>
                 </div>
-            </div>
 
-            <div className="h-8 w-px bg-slate-200 dark:bg-white/10 hidden sm:block"></div>
-
-            {/* --- HERO INTEGRADO (CON BARRA DE CRÉDITO) --- */}
-            <div className="flex flex-col justify-center hidden sm:flex animate-in fade-in slide-in-from-left-4 min-w-[140px]">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
-                    {headerData.name}
-                </span>
-                
-                <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black leading-none" style={{ color: darkMode ? 'white' : themeColor }}>
-                        {privacyMode ? '****' : formatCurrency(headerData.balance)}
-                    </span>
-                    {/* Si es crédito, mostramos el disponible pequeño al lado */}
-                    {headerData.isCredit && !privacyMode && (
-                        <span className="text-xs font-bold text-slate-400">
-                            (Disp: {formatCurrency(headerData.available)})
+                {/* 5. HERO INTEGRADO (PATRIMONIO + DATOS DE CRÉDITO) */}
+                <div className="flex items-center gap-4 hidden lg:flex animate-in fade-in slide-in-from-left-4">
+                    
+                    {/* BLOQUE A: Nombre y Saldo Principal */}
+                    <div className="flex flex-col justify-center min-w-[100px]">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
+                            {headerData.name}
                         </span>
+                        <span className="text-2xl font-black leading-none" style={{ color: darkMode ? 'white' : themeColor }}>
+                            {privacyMode ? '****' : formatCurrency(headerData.balance)}
+                        </span>
+                    </div>
+
+                    {/* BLOQUE B: Gráfico y Detalles (SOLO SI ES CRÉDITO) */}
+                    {headerData.isCredit && !privacyMode && (
+                        <>
+                            {/* Separador */}
+                            <div className="h-8 w-px bg-slate-200 dark:bg-white/10"></div>
+                            
+                            <div className="flex items-center gap-3">
+                                {/* Gráfico Circular SVG */}
+                                <div className="relative w-9 h-9 flex items-center justify-center">
+                                    <svg className="w-full h-full transform -rotate-90">
+                                        <circle cx="18" cy="18" r="14" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-slate-200 dark:text-slate-700 opacity-50"/>
+                                        <circle 
+                                            cx="18" cy="18" r="14" 
+                                            stroke={themeColor} strokeWidth="3" fill="transparent" strokeLinecap="round"
+                                            strokeDasharray={2 * Math.PI * 14} 
+                                            strokeDashoffset={(2 * Math.PI * 14) - (Math.min(headerData.percent, 100) / 100) * (2 * Math.PI * 14)} 
+                                        />
+                                    </svg>
+                                    <div className="absolute text-[8px] font-black text-slate-400">
+                                        {Math.round(headerData.percent)}%
+                                    </div>
+                                </div>
+
+                                {/* Textos de Detalle */}
+                                <div className="flex flex-col justify-center text-[9px] font-bold leading-tight">
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-slate-400">Disp:</span>
+                                        <span className="text-emerald-500">{formatCurrency(headerData.available)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-slate-400">Cupo:</span>
+                                        <span className={darkMode ? "text-slate-300" : "text-slate-600"}>{formatCurrency(headerData.limit)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
                     )}
                 </div>
-
-                {/* BARRA DE PROGRESO (SOLO SI ES CRÉDITO) */}
-                {headerData.isCredit && (
-                    <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-1 overflow-hidden">
-                        <div 
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ 
-                                width: `${headerData.percent}%`,
-                                backgroundColor: themeColor 
-                            }}
-                        />
-                    </div>
-                )}
             </div>
-        </div>
+
+            {/* 2. SECCIÓN CENTRAL: WALLETS (FLEXIBLE Y SCROLLABLE) */}
+            <div className="flex-1 overflow-x-auto scrollbar-hide border-l border-r border-slate-200/50 dark:border-white/5 mx-2 px-2 mask-linear-fade">
+                 <HeaderWallets 
+                    onAdd={() => handleOpenModal('wallet')} 
+                    onEdit={(item) => handleOpenModal('wallet', item)} 
+                />
+            </div>
+
+            
+
+        
+        
+        
+      </div>
         {/* DERECHA: GRUPO DE ACCIONES (Menú Desplegable + Ajustes + Salir) */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 py-2">
             
             {/* 1. MENÚ DESPLEGABLE (Se expande hacia la izquierda) */}
             <div className={`flex items-center gap-3 transition-all duration-300 origin-right overflow-hidden ${isSettingsOpen ? 'w-auto opacity-100 scale-100 mr-2' : 'w-0 opacity-0 scale-95'}`}>
@@ -358,6 +454,16 @@ export default function App() {
                     </button>
                 </div>
             </div>
+
+            {/* --- NUEVO BOTÓN: MENU LATERAL --- */}
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className={`p-2 rounded-full transition-all hover:bg-slate-100 dark:hover:bg-slate-700 ${isSidebarOpen ? 'text-blue-500 bg-slate-100 dark:bg-slate-800' : 'text-slate-400'}`}
+              title="Abrir Menú de Gestión"
+            >
+              <Menu size={20}/>
+            </button>
+
             {/* NUEVO BOTÓN: IMPORTAR TRANSACCIONES */}
             <button 
               onClick={() => handleOpenModal('import')}
@@ -366,6 +472,16 @@ export default function App() {
             >
               <UploadCloud size={20}/>
             </button>
+
+            {/* NUEVO BOTÓN: PERFIL DE USUARIO */}
+            <button 
+              onClick={() => handleOpenModal('profile')}
+              className="p-2 rounded-full transition-all text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-500"
+              title="Mi Perfil"
+            >
+              <User size={20}/>
+            </button>
+
             {/* 2. BOTÓN AJUSTES (SOLO RUEDITA) */}
             <button 
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -387,29 +503,155 @@ export default function App() {
       </div>
       
 
-      <main className="max-w-7xl mx-auto px-4 mt-8">
+      <main className={`max-w-7xl mx-auto px-4 mt-8 transition-all duration-300 ${isSidebarPinned && isSidebarOpen ? 'mr-[24rem] max-w-none' : ''}`}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* COLUMNA IZQUIERDA (Estrecha) */}
           <div className="lg:col-span-4 space-y-6">
-            {/* ❌ AQUÍ BORRAMOS <MainHero />*/}
+            {/* 1. Formulario de Transacciones */}
             <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
-            <div className="flex flex-col gap-6">{leftOrder.map((key, index) => renderLeftSection(key, index))}</div>
+            {/* 2. GRÁFICAS */}
+            <div className="w-full h-[400px] overflow-hidden relative">
+                <FinancialCharts onOpenProjection={() => setProjectionOpen(true)} />
+            </div>
+            {/* 3. Secciones dinámicas izquierda (Categorías, Metas, etc.) 
+            <div className="flex flex-col gap-6">{leftOrder.map((key, index) => renderLeftSection(key, index))}</div>*/}
           </div>
           
           {/* COLUMNA DERECHA (Ancha) */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FinancialCharts onOpenProjection={() => setProjectionOpen(true)} />
-            </div>
-            {/* Lista dinámica derecha */}
-            <div className="flex flex-col gap-6">
-                {rightOrder.map((key, index) => renderRightSection(key, index))}
-            </div>
+            {/* Lista dinámica derecha (Trabajo, Eventos, Historial) */}
+            <div className="flex flex-col gap-6">{rightOrder.map((key, index) => renderRightSection(key, index))}</div>
           </div>
         </div>
       </main>
 
+    {/* --- SIDEBAR DERECHO (MEJORADO) --- */}
+
+    {/* 1. EL FONDO OSCURO (OVERLAY) 
+        Solo se muestra si está abierto Y NO está fijado (pinned) */}
+    {isSidebarOpen && !isSidebarPinned && (
+    <div 
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60]"
+        onClick={() => setIsSidebarOpen(false)}
+    />
+    )}
+
+    {/* 2. EL PANEL LATERAL */}
+{/* 2. EL PANEL LATERAL (LÍNEA MODIFICADA PARA CORREGIR COLOR) */}
+    <div className={`fixed inset-y-0 right-0 z-[70] w-96 shadow-2xl transform transition-transform duration-300 ease-in-out border-l flex flex-col ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${darkMode ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>    
+    {/* Cabecera del Sidebar */}
+    <div className={`flex items-center justify-between p-4 border-b shrink-0 ${darkMode ? 'border-white/5' : 'border-slate-100'}`}>
+        <span className="text-sm font-black uppercase tracking-widest text-slate-500">Gestión Financiera</span>
+        
+        <div className="flex items-center gap-1">
+            {/* BOTÓN PIN (FIJAR) */}
+            <button 
+            onClick={() => setIsSidebarPinned(!isSidebarPinned)}
+            className={`p-2 rounded-full transition-all ${isSidebarPinned ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            title={isSidebarPinned ? "Desfijar menú" : "Fijar menú"}
+            >
+            {isSidebarPinned ? <Pin size={18} className="fill-current" /> : <Pin size={18} />}
+            </button>
+
+            {/* BOTÓN CERRAR */}
+            <button 
+            onClick={() => { setIsSidebarOpen(false); setIsSidebarPinned(false); }}
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-colors"
+            >
+            <X size={20} />
+            </button>
+        </div>
+    </div>
+
+  {/* Contenido Scrollable con Ordenamiento */}
+  <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20 custom-scrollbar">
+    
+    {/* AQUÍ ESTÁ LA MAGIA DEL ORDENAMIENTO: Usamos leftOrder */}
+    {leftOrder.map((key, index) => {
+        // Props comunes para todas las secciones
+        const commonProps = {
+            key: key,
+            onAdd: () => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : key === 'categories' ? 'category' : 'budget'),
+            onEdit: (item) => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : key === 'categories' ? 'category' : 'budget', item),
+            // Lógica de movimiento conectada a tu función moveLeftSection existente
+            onMoveUp: () => moveLeftSection(index, 'up'),
+            onMoveDown: () => moveLeftSection(index, 'down'),
+            isFirst: index === 0,
+            isLast: index === leftOrder.length - 1
+        };
+
+        // Renderizado condicional según la "key"
+        switch(key) {
+            case 'categories': return <CategoriesSection {...commonProps} />;
+            case 'budgets':    return <BudgetSection {...commonProps} />;
+            case 'goals':      return <GoalsSection {...commonProps} />;
+            case 'subs':       return <SubscriptionSection {...commonProps} />;
+            default: return null;
+        }
+    })}
+
+    {/* Mensaje si no hay nada (opcional) */}
+    {leftOrder.length === 0 && (
+        <p className="text-center text-slate-400 text-xs mt-10">No hay secciones visibles.</p>
+    )}
+
+  </div>
+</div>
+
       <Modal isOpen={modalOpen} onClose={closeModal} title={itemToEdit ? 'Editar' : 'Crear Nuevo'}>
+        
+        {modalType === 'profile' && (
+            <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div className="flex justify-center mb-6">
+                    <div className="relative">
+                        <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-black text-white shadow-xl" style={{ backgroundColor: themeColor }}>
+                            {displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="absolute bottom-0 right-0 p-2 bg-slate-800 rounded-full text-white border-2 border-white dark:border-slate-900">
+                            <Settings size={14} />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Correo Electrónico</label>
+                    <input 
+                        disabled 
+                        className="w-full p-4 rounded-xl font-bold outline-none bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed border-transparent" 
+                        value={user?.email} 
+                    />
+                    <p className="text-[10px] text-slate-400 px-1">El correo no se puede cambiar por seguridad.</p>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Nombre Completo</label>
+                    <input 
+                        autoFocus
+                        className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" 
+                        style={modalInputStyle} 
+                        placeholder="Tu Nombre" 
+                        value={profileName} 
+                        onChange={e => setProfileName(e.target.value)} 
+                    />
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">Nueva Contraseña (Opcional)</label>
+                    <input 
+                        type="password"
+                        className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" 
+                        style={modalInputStyle} 
+                        placeholder="••••••••" 
+                        value={profilePassword} 
+                        onChange={e => setProfilePassword(e.target.value)} 
+                    />
+                </div>
+
+                <button className="w-full py-4 text-white font-black rounded-xl shadow-lg hover:brightness-110 transition-all mt-4" style={{ backgroundColor: themeColor }}>
+                    ACTUALIZAR PERFIL
+                </button>
+            </form>
+        )}
         {/* ... (TUS FORMULARIOS DE MODAL SE MANTIENEN IGUALES) ... */}
         {modalType === 'wallet' && ( <form onSubmit={handleSaveWallet} className="space-y-4"> <div className="flex justify-center mb-4"><div className="p-4 rounded-full text-white" style={{ backgroundColor: themeColor }}>{newWalletType === 'credit' ? <CreditCard size={32}/> : <Wallet size={32}/>}</div></div> <select className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} value={newWalletType} onChange={(e) => setNewWalletType(e.target.value)}><option value="cash">Efectivo</option><option value="debit">Débito</option><option value="credit">Crédito</option></select> <input autoFocus className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Nombre" value={newWalletName} onChange={e => setNewWalletName(e.target.value)} /> {newWalletType === 'credit' && <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Cupo Límite" value={newWalletLimit} onChange={e => setNewWalletLimit(e.target.value)} />} <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Saldo Actual" value={newWalletBalance} onChange={e => setNewWalletBalance(e.target.value)} /> <button className="w-full py-4 text-white font-black rounded-xl" style={{ backgroundColor: themeColor }}>{itemToEdit ? 'ACTUALIZAR' : 'GUARDAR'}</button> </form> )}
         {modalType === 'work' && (
