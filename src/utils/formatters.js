@@ -4,5 +4,3 @@ export const formatCurrency = (amount) => {
     currency: 'USD',
   }).format(amount);
 };
-
-export const getCurrentDate = () => new Date().toISOString().split('T')[0];

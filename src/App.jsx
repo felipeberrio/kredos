@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useFinancial } from './context/FinancialContext';
-import { MainHero } from './layout/MainHero';
-import { WalletSection } from './layout/WalletSection';
 import { CategoriesSection } from './layout/CategoriesSection';
 import { BudgetSection } from './layout/BudgetSection';
 import { WorkSection } from './layout/WorkSection';
@@ -14,12 +12,12 @@ import { DateFilter } from './components/DateFilter';
 import { Modal } from './components/Modal';
 import { ProjectionModal } from './components/ProjectionModal';
 import { ThemeSelector } from './components/ThemeSelector';
-import { User,LogOut, UploadCloud,Moon, Sun, Eye, EyeOff, Palette, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, ChevronsUp, ChevronsDown, Brush, PaintBucket, Settings, X, DollarSign, Menu, Pin, PinOff} from 'lucide-react';
+import { User, LogOut, UploadCloud, Moon, Sun, Eye, EyeOff, Target, Calendar, Wallet, CreditCard, PieChart, Tag, Briefcase, Building2, PaintBucket, Settings, X, Menu, Pin } from 'lucide-react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { formatCurrency } from './utils/formatters';
 import { EventsSection } from './layout/EventsSection';
-import { useAuth } from './context/AuthContext'; // <--- Importar esto
-import { Login } from './components/Login'; // <--- Importar Login
+import { useAuth } from './context/AuthContext';
+import { Login } from './components/Login';
 import ImportTransactions from './components/ImportTransactions';
 import { supabase } from './supabaseClient';
 import { HeaderWallets } from './components/HeaderWallets';
@@ -30,7 +28,7 @@ export default function App() {
     
   const { user, signOut } = useAuth(); // <--- Obtener usuario y función de cerrar sesión
 
-  const { darkMode, setDarkMode, themeColor, setThemeColor, wallets, setWallets, goals, setGoals: setGlobalGoals, subscriptions, setSubscriptions: setGlobalSubs,budgets, setBudgets: setGlobalBudgets, categories,workLogs, addWorkLog, updateWorkLog, companies, addCompany, updateCompany,addWallet, addGoal, addSubscription, addBudget,updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, setIsAllExpanded,calculatePayDate,totalBalance,selectedWalletId,getWalletNetFlow,updateWalletFromInitial,useSemanticColors, setUseSemanticColors,privacyMode, setPrivacyMode,currency, setCurrency} = useFinancial();
+  const { darkMode, setDarkMode, themeColor, wallets, goals, subscriptions, budgets, categories, workLogs, addWorkLog, updateWorkLog, companies, addCompany, updateCompany, addWallet, addGoal, addSubscription, addBudget, updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, calculatePayDate, totalBalance, selectedWalletId, getWalletNetFlow, updateWalletFromInitial, useSemanticColors, setUseSemanticColors, privacyMode, setPrivacyMode, currency, setCurrency } = useFinancial();
 
 
   const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['categories', 'budgets', 'goals', 'subs']); // ORDEN COLUMNA IZQUIERDA

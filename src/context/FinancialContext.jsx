@@ -520,8 +520,6 @@ const updateWalletFromInitial = async (wallet, newInitialBalance) => {
 // --- UPDATE TRANSACTION (VERSIÓN DEPURADA Y SEGURA) ---
   // --- UPDATE TRANSACTION (VERSIÓN FINAL HÍBRIDA: CLOUD + LOCAL) ---
 const updateTransaction = async (newItem) => {
-    console.log("🔄 Iniciando actualización...", newItem);
-
     // =======================================================
     // 🌐 MODO ONLINE (CON USUARIO) - FUENTE DE VERDAD: DB
     // =======================================================
@@ -534,7 +532,6 @@ const updateTransaction = async (newItem) => {
             .single();
 
         if (fetchError || !originalDbItem) {
-            console.error("❌ Error recuperando original:", fetchError);
             alert("Error de sincronización. Recarga la página.");
             return;
         }
@@ -676,7 +673,6 @@ const deleteTransaction = async (id, type) => {
 
             if (wallet) {
                 // CASO A: La wallet existe -> Le devolvemos/quitamos el dinero
-                console.log(`Devolviendo saldo a wallet: ${wallet.name}`);
                 const newBal = type === 'income' 
                     ? Number(wallet.balance) - Number(tx.amount) 
                     : Number(wallet.balance) + Number(tx.amount);
@@ -872,8 +868,7 @@ const deleteCompany = async (id) => { if(window.confirm("¿Eliminar?")){ if(user
     // --- UPDATE WORK LOG (CORREGIDO: ACTUALIZA, NO DUPLICA) ---
     const updateWorkLog = async (item) => {
         // Si hay usuario, actualizamos en Supabase
-        if (user) {
-            console.log("🔄 Actualizando turno...", item);
+    if (user) {
             
             // 1. Mapeamos de camelCase (App) a snake_case (Base de Datos)
             const { id, companyId, companyName, workDate, startTime, endTime, paymentDate, ...rest } = item;
@@ -1067,8 +1062,6 @@ const unmarkWorkAsPaid = (log) => updateWorkLog({
   // --- COBRAR MÚLTIPLES TURNOS (Genera Ingreso + Actualiza Saldos + Marca Pagados) ---
   const payWorkLogs = async (logsToPay, walletId) => {
     if (!user || logsToPay.length === 0) return;
-
-    console.log("💰 Cobrando turnos masivos...", logsToPay);
 
     // 1. Calcular el Total
     const totalAmount = logsToPay.reduce((sum, log) => sum + Number(log.total || 0), 0);

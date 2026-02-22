@@ -4,19 +4,6 @@ import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 
-/* RECOMENDACIONES
-import { formatDate, formatDateSafe, getMonthName, getYear } from '../utils/dateUtils';
-import { Calendar } from '../components/Calendar';
-import { WorkLogForm } from '../components/WorkLogForm';
-import { CompanyForm } from '../components/CompanyForm';
-import { WorkLogCard } from '../components/WorkLogCard';
-import { CompanyCard } from '../components/CompanyCard';
-import { WorkLogModal } from '../components/WorkLogModal';
-import { CompanyModal } from '../components/CompanyModal';
-import { WorkLogCalendar } from '../components/WorkLogCalendar';
-import { WorkLogList } from '../components/WorkLogList';
-import { CompanyList } from '../components/CompanyList'; */
-
 export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit, onAddCompany, onEditCompany }) => {
   const { workLogs, companies, markWorkAsPaid, unmarkWorkAsPaid, wallets, themeColor, darkMode, deleteWorkLog, deleteCompany, isAllExpanded, payWorkLogs, calculatePayDate} = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
@@ -102,32 +89,6 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
       // Retornamos la proyección mensual
       return rate * weeklyHours * 4; 
   };
-
-// --- COBRAR MÚLTIPLES TURNOS (Genera Ingreso + Actualiza Saldos + Marca Pagados) ---
-  // Esta función es la que llama tu botón "Confirmar" del modal
-const handleConfirmPayment = () => {
-    if (!selectedWalletId) {
-        alert("Por favor selecciona una cuenta");
-        return;
-    }
-
-    // 'dayLogs' son los turnos que estás viendo en ese día y quieres cobrar
-    // Filtramos solo los que estén 'pending' para no cobrar doble por error
-    const pendingLogs = dayLogs.filter(log => log.status === 'pending');
-
-    if (pendingLogs.length === 0) {
-        alert("No hay turnos pendientes por cobrar en este día.");
-        return;
-    }
-
-    // ¡Aquí ocurre la magia!
-    payWorkLogs(pendingLogs, selectedWalletId);
-    
-    // Cierras el modal
-    setIsPaymentModalOpen(false);
-};
-
-
 
   // --- LOGICA PESTAÑA PAGOS (AGRUPACIÓN POR FECHA) ---
   const upcomingPayments = useMemo(() => {
