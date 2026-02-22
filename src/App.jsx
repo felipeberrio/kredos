@@ -3,7 +3,6 @@ import { useFinancial } from './context/FinancialContext';
 import { CategoriesSection } from './layout/CategoriesSection';
 import { BudgetSection } from './layout/BudgetSection';
 import { WorkSection } from './layout/WorkSection';
-import { TransactionForm } from './components/TransactionForm';
 import { HistorySection } from './layout/HistorySection';
 import { SubscriptionSection } from './layout/SubscriptionSection';
 import { GoalsSection } from './layout/GoalsSection';
@@ -25,22 +24,21 @@ import { HeaderWallets } from './components/HeaderWallets';
 
 export default function App() {
 
-    
-  const { user, signOut } = useAuth(); // <--- Obtener usuario y función de cerrar sesión
+  const { user, signOut } = useAuth();
 
   const { darkMode, setDarkMode, themeColor, wallets, goals, subscriptions, budgets, categories, workLogs, addWorkLog, updateWorkLog, companies, addCompany, updateCompany, addWallet, addGoal, addSubscription, addBudget, updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, calculatePayDate, totalBalance, selectedWalletId, getWalletNetFlow, updateWalletFromInitial, useSemanticColors, setUseSemanticColors, privacyMode, setPrivacyMode, currency, setCurrency } = useFinancial();
 
 
-  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v6', ['categories', 'goals', 'subs']); // Quitamos budgets de aquí
-  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v4', ['budgets', 'history', 'work', 'events']); // Añadimos budgets encima de history
+  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v6', ['categories', 'goals', 'subs']);
+  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v4', ['budgets', 'history', 'work', 'events']);
   const [editingItem, setEditingItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [itemToEdit, setItemToEdit] = useState(null);
   const [projectionOpen, setProjectionOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);  // ESTADO AJUSTES HEADER
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NUEVO: Estado para el Menú Lateral de Secciones
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false); // NUEVO: Estado para saber si el menú está "Fijado"
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
 
   // INPUTS GENERALES
   const [newWalletName, setNewWalletName] = useState(''); const [newWalletBalance, setNewWalletBalance] = useState(''); const [newWalletType, setNewWalletType] = useState('cash'); const [newWalletLimit, setNewWalletLimit] = useState('');
@@ -70,7 +68,7 @@ export default function App() {
   useEffect(() => { if (workStart && workEnd && workRate) { const [h1, m1] = workStart.split(':').map(Number); const [h2, m2] = workEnd.split(':').map(Number); let diff = (h2 + m2/60) - (h1 + m1/60); if (diff < 0) diff += 24; setWorkHoursCalc(diff.toFixed(2)); setWorkTotalCalc(diff * Number(workRate)); } else { setWorkTotalCalc(0); setWorkHoursCalc(0);} }, [workStart, workEnd, workRate]);
   useEffect(() => { if (selectedCompanyId) { const comp = companies.find(c => c.id === selectedCompanyId); if (comp) { if(!workRate) setWorkRate(comp.rate); const estimatedPay = calculatePayDate(workDate, comp); setWorkPaymentDate(estimatedPay); } } }, [selectedCompanyId, workDate, companies]);
 
-  if (!user) {return <Login />;}   // 2. VERIFICACIÓN DE SEGURIDAD (AGREGAR ESTO ANTES DEL RETURN)
+  if (!user) {return <Login />;}
 
   // GESTIÓN DE ORDENAMIENTO
   const moveLeftSection = (index, direction) => {
@@ -94,7 +92,7 @@ export default function App() {
       setModalType(type); setItemToEdit(item); setModalOpen(true); cleanInputs();
       if (item) {
           if(type === 'profile') {setProfileName(user?.user_metadata?.full_name || '');setProfilePassword('');}
-          if(type === 'wallet') { setNewWalletName(item.name); const netFlow = getWalletNetFlow(item.id);setNewWalletBalance(Number(item.balance) - netFlow); setNewWalletType(item.type);setNewWalletLimit(item.limit || '');}     
+          if(type === 'wallet') { setNewWalletName(item.name); const netFlow = getWalletNetFlow(item.id);setNewWalletBalance(Number(item.balance) - netFlow); setNewWalletType(item.type);setNewWalletLimit(item.limit || '');}    
           if(type === 'goal') { setNewGoalName(item.name); setNewGoalTarget(item.target); setNewGoalSaved(item.saved); setNewGoalDeadline(item.deadline || ''); setNewGoalFrequency(item.frequency || 'monthly'); setNewGoalInstallment(item.installment || ''); setNewGoalStartDate(item.startDate || new Date().toISOString().split('T')[0]); }
           if(type === 'sub') { setNewSubName(item.name); setNewSubPrice(item.price); setNewSubDay(item.day); }
           if(type === 'budget') { setNewBudgetCat(item.category); setNewBudgetLimit(item.limit); }
@@ -184,15 +182,15 @@ export default function App() {
           isLast: index === rightOrder.length - 1,
           onAdd: () => handleOpenModal(key === 'work' ? 'work' : key === 'budgets' ? 'budget' : 'transaction'),
           onAddCompany: () => handleOpenModal('company'),
-          onEdit: (item) => handleOpenModal(key === 'work' ? 'work' : key === 'budgets' ? 'budget' : 'transaction', item), 
           onEditCompany: (item) => handleOpenModal('company', item)
       };
 
       switch(key) {
-          case 'budgets': return <BudgetSection {...props} />; // Nuevo caso añadido
-          case 'work': return <WorkSection {...props} />;
+          case 'budgets': return <BudgetSection {...props} />;
+          case 'work': return <WorkSection {...props} onEdit={(item) => handleOpenModal('work', item)} />;
           case 'events': return <EventsSection {...props} />;
-          case 'history': return <HistorySection {...props} onEdit={(item) => setEditingItem(item)} />;
+          // Pasamos editingItem y setEditingItem al Historial para que el Formulario funcione
+          case 'history': return <HistorySection {...props} onEdit={(item) => setEditingItem(item)} editingItem={editingItem} setEditingItem={setEditingItem} />;
           default: return null;
       }
   };
@@ -209,44 +207,31 @@ export default function App() {
   // FUNCIÓN REAL PARA ACTUALIZAR PERFIL
   const handleUpdateProfile = async (e) => {
       e.preventDefault();
-      
       const updates = {};
-      
-      // 1. Solo agregamos lo que el usuario escribió
       if (profileName && profileName !== displayName) {
           updates.data = { full_name: profileName };
       }
       if (profilePassword) {
           updates.password = profilePassword;
       }
-
-      // Si no hay cambios, no hacemos nada
       if (Object.keys(updates).length === 0) {
           closeModal();
           return;
       }
-
       try {
-          // 2. Enviamos los cambios a Supabase
           const { error } = await supabase.auth.updateUser(updates);
-          
           if (error) throw error;
-
           alert("¡Perfil actualizado con éxito!");
-          
-          setProfilePassword(''); // Limpiamos la contraseña por seguridad
+          setProfilePassword(''); 
           closeModal();
-          
-          // 3. Recargamos suavemente para ver el nuevo nombre reflejado en el header
           window.location.reload(); 
-
       } catch (error) {
           console.error("Error al actualizar:", error);
           alert("Error: " + error.message);
       }
   };
 
-  // --- LÓGICA INTELIGENTE DEL HEADER (Adaptada de MainHero) ---
+  // --- LÓGICA INTELIGENTE DEL HEADER ---
   const activeWallet = React.useMemo(() => {
     if (!selectedWalletId) return null;
     return wallets.find(w => w.id === selectedWalletId);
@@ -257,7 +242,6 @@ export default function App() {
       const balance = activeWallet ? activeWallet.balance : totalBalance;
       const name = activeWallet ? activeWallet.name : "Patrimonio Neto";
       
-      // Cálculos de Crédito
       const limit = isCredit ? (activeWallet.limit || 0) : 0;
       const used = isCredit ? Math.abs(balance) : 0;
       const available = limit - used;
@@ -265,9 +249,6 @@ export default function App() {
 
       return { isCredit, balance, name, limit, used, available, percent };
   }, [activeWallet, totalBalance]);
-
-
-  
 
 
   return (
@@ -279,12 +260,8 @@ export default function App() {
           : (darkMode ? '#0f172a' : `${themeColor}08`)
       }}
     >
-    {/* Header Premium */}
     <header className={`sticky top-0 z-50 mb-6 px-4 sm:px-6 rounded-b-2xl flex justify-between items-center transition-all duration-300 backdrop-blur-xl ${darkMode ? 'bg-slate-900/80 border-b border-slate-700/50 shadow-card-dark' : 'bg-white/90 border-b border-slate-200/60 shadow-card'}`}> 
-        {/* --- HEADER UNIFICADO (HORIZONTAL + TRANSPARENTE) --- */}
-      
         <div className="w-full px-2 sm:px-4 py-3 h-16 sm:h-18 flex items-center gap-3 sm:gap-4 overflow-hidden">
-            {/* Logo + Usuario */}
             <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                 <div className="flex items-center gap-2">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0 transition-transform hover:scale-105 active:scale-95" style={{ backgroundColor: themeColor }}>$</div>
@@ -295,9 +272,7 @@ export default function App() {
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: themeColor }}><User size={14} strokeWidth={2.5}/></div>
                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">{displayName}</span>
                 </div>
-                {/* Balance destacado */}
                 <div className="flex items-center gap-4 hidden lg:flex">
-                    
                     <div className="flex flex-col justify-center min-w-[100px]">
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
                             {headerData.name}
@@ -307,14 +282,11 @@ export default function App() {
                         </span>
                     </div>
 
-                    {/* BLOQUE B: Gráfico y Detalles (SOLO SI ES CRÉDITO) */}
                     {headerData.isCredit && !privacyMode && (
                         <>
-                            {/* Separador */}
                             <div className="h-8 w-px bg-slate-200 dark:bg-white/10"></div>
                             
                             <div className="flex items-center gap-3">
-                                {/* Gráfico Circular SVG */}
                                 <div className="relative w-9 h-9 flex items-center justify-center">
                                     <svg className="w-full h-full transform -rotate-90">
                                         <circle cx="18" cy="18" r="14" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-slate-200 dark:text-slate-700 opacity-50"/>
@@ -330,7 +302,6 @@ export default function App() {
                                     </div>
                                 </div>
 
-                                {/* Textos de Detalle */}
                                 <div className="flex flex-col justify-center text-[9px] font-bold leading-tight">
                                     <div className="flex items-center gap-1">
                                         <span className="text-slate-400">Disp:</span>
@@ -353,25 +324,15 @@ export default function App() {
                     onEdit={(item) => handleOpenModal('wallet', item)} 
                 />
             </div>
-
-            
-
-        
-        
-        
       </div>
         <div className="flex items-center gap-1 sm:gap-2 py-2 shrink-0">
-            
-            {/* 1. MENÚ DESPLEGABLE (Se expande hacia la izquierda) */}
             <div className={`flex items-center gap-3 transition-all duration-300 origin-right overflow-hidden ${isSettingsOpen ? 'w-auto opacity-100 scale-100 mr-2' : 'w-0 opacity-0 scale-95'}`}>
                 
-                {/* Moneda */}
                 <div className={`flex p-1 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                     <button onClick={() => setCurrency('USD')} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${currency === 'USD' ? 'bg-white shadow text-blue-600 dark:bg-slate-600 dark:text-white' : 'text-slate-400'}`}>USD</button>
                     <button onClick={() => setCurrency('COP')} className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${currency === 'COP' ? 'bg-white shadow text-emerald-600 dark:bg-slate-600 dark:text-white' : 'text-slate-400'}`}>COP</button>
                 </div>
 
-                {/* Tema + Semántico */}
                 <div className={`flex items-center gap-2 px-2 py-1 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                     <ThemeSelector />
                     <button 
@@ -383,12 +344,10 @@ export default function App() {
                     </button>
                 </div>
 
-                {/* Fecha */}
                 <div className={`rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                     <DateFilter />
                 </div>
 
-                {/* Sistema */}
                 <div className={`flex items-center gap-1 p-1 rounded-lg ${darkMode ? 'bg-slate-700' : 'bg-slate-100'}`}>
                     <button onClick={() => setPrivacyMode(!privacyMode)} className={`p-1.5 rounded-md transition-colors ${privacyMode ? 'text-blue-500 bg-white dark:bg-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`} title="Ocultar Saldos">
                         {privacyMode ? <EyeOff size={16}/> : <Eye size={16}/>}
@@ -419,28 +378,19 @@ export default function App() {
 
       <main className={`max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-8 transition-all duration-300 ${isSidebarPinned && isSidebarOpen ? 'mr-[24rem] max-w-none pr-4' : ''}`}>
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
-          {/* COLUMNA IZQUIERDA (Estrecha) */}
           <div className="lg:col-span-4 space-y-6">
-            {/* 1. GRÁFICAS (Movidas hacia arriba) */}
             <div className="w-full h-[400px] overflow-hidden relative">
                 <FinancialCharts onOpenProjection={() => setProjectionOpen(true)} />
             </div>
-            {/* 2. Formulario de Transacciones (Movido hacia abajo) */}
-            <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
+            {/* Componente de Formulario removido de aquí */}
           </div>
           
-          {/* COLUMNA DERECHA (Ancha) */}
           <div className="lg:col-span-8 space-y-6">
             <div className="flex flex-col gap-6">{rightOrder.map((key, index) => renderRightSection(key, index))}</div>
-            {/* Lista dinámica derecha (Trabajo, Eventos, Historial) */}
           </div>
         </div>
       </main>
 
-    {/* --- SIDEBAR DERECHO (MEJORADO) --- */}
-
-    {/* 1. EL FONDO OSCURO (OVERLAY) 
-        Solo se muestra si está abierto Y NO está fijado (pinned) */}
     {isSidebarOpen && !isSidebarPinned && (
     <div 
         className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60]"
@@ -461,24 +411,18 @@ export default function App() {
         </div>
     </div>
 
-  {/* Contenido Scrollable con Ordenamiento */}
   <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-20 custom-scrollbar">
-    
-    {/* AQUÍ ESTÁ LA MAGIA DEL ORDENAMIENTO: Usamos leftOrder */}
     {leftOrder.map((key, index) => {
-        // Props comunes para todas las secciones
         const commonProps = {
             key: key,
             onAdd: () => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : key === 'categories' ? 'category' : 'budget'),
             onEdit: (item) => handleOpenModal(key === 'wallets' ? 'wallet' : key === 'goals' ? 'goal' : key === 'subs' ? 'sub' : key === 'categories' ? 'category' : 'budget', item),
-            // Lógica de movimiento conectada a tu función moveLeftSection existente
             onMoveUp: () => moveLeftSection(index, 'up'),
             onMoveDown: () => moveLeftSection(index, 'down'),
             isFirst: index === 0,
             isLast: index === leftOrder.length - 1
         };
 
-        // Renderizado condicional según la "key"
         switch(key) {
             case 'categories': return <CategoriesSection {...commonProps} />;
             case 'budgets':    return <BudgetSection {...commonProps} />;
@@ -487,12 +431,9 @@ export default function App() {
             default: return null;
         }
     })}
-
-    {/* Mensaje si no hay nada (opcional) */}
     {leftOrder.length === 0 && (
         <p className="text-center text-slate-400 text-xs mt-10">No hay secciones visibles.</p>
     )}
-
   </div>
 </div>
 
@@ -513,36 +454,18 @@ export default function App() {
 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase text-slate-500">Correo Electrónico</label>
-                    <input 
-                        disabled 
-                        className="w-full p-4 rounded-xl font-bold outline-none bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed border-transparent" 
-                        value={user?.email} 
-                    />
+                    <input disabled className="w-full p-4 rounded-xl font-bold outline-none bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed border-transparent" value={user?.email} />
                     <p className="text-[10px] text-slate-400 px-1">El correo no se puede cambiar por seguridad.</p>
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase text-slate-500">Nombre Completo</label>
-                    <input 
-                        autoFocus
-                        className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" 
-                        style={modalInputStyle} 
-                        placeholder="Tu Nombre" 
-                        value={profileName} 
-                        onChange={e => setProfileName(e.target.value)} 
-                    />
+                    <input autoFocus className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" style={modalInputStyle} placeholder="Tu Nombre" value={profileName} onChange={e => setProfileName(e.target.value)} />
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-[10px] font-bold uppercase text-slate-500">Nueva Contraseña (Opcional)</label>
-                    <input 
-                        type="password"
-                        className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" 
-                        style={modalInputStyle} 
-                        placeholder="••••••••" 
-                        value={profilePassword} 
-                        onChange={e => setProfilePassword(e.target.value)} 
-                    />
+                    <input type="password" className="w-full p-4 rounded-xl font-bold outline-none border transition-colors focus:border-blue-500" style={modalInputStyle} placeholder="••••••••" value={profilePassword} onChange={e => setProfilePassword(e.target.value)} />
                 </div>
 
                 <button className="w-full py-4 text-white font-black rounded-xl shadow-lg hover:brightness-110 transition-all mt-4" style={{ backgroundColor: themeColor }}>
@@ -550,7 +473,6 @@ export default function App() {
                 </button>
             </form>
         )}
-        {/* ... (TUS FORMULARIOS DE MODAL SE MANTIENEN IGUALES) ... */}
         {modalType === 'wallet' && ( <form onSubmit={handleSaveWallet} className="space-y-4"> <div className="flex justify-center mb-4"><div className="p-4 rounded-full text-white" style={{ backgroundColor: themeColor }}>{newWalletType === 'credit' ? <CreditCard size={32}/> : <Wallet size={32}/>}</div></div> <select className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} value={newWalletType} onChange={(e) => setNewWalletType(e.target.value)}><option value="cash">Efectivo</option><option value="debit">Débito</option><option value="credit">Crédito</option></select> <input autoFocus className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Nombre" value={newWalletName} onChange={e => setNewWalletName(e.target.value)} /> {newWalletType === 'credit' && <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Cupo Límite" value={newWalletLimit} onChange={e => setNewWalletLimit(e.target.value)} />} <input type="number" className="w-full p-4 rounded-xl font-bold outline-none" style={modalInputStyle} placeholder="Saldo Actual" value={newWalletBalance} onChange={e => setNewWalletBalance(e.target.value)} /> <button className="w-full py-4 text-white font-black rounded-xl" style={{ backgroundColor: themeColor }}>{itemToEdit ? 'ACTUALIZAR' : 'GUARDAR'}</button> </form> )}
         {modalType === 'work' && (
             <form onSubmit={handleSaveWork} className="space-y-4">
@@ -588,11 +510,7 @@ export default function App() {
               <p className="text-center text-sm text-slate-500 mb-4">
                   Sube tu archivo CSV del banco para categorizar automáticamente.
               </p>
-              
-              {/* Aquí renderizamos tu componente nuevo */}
-              <ImportTransactions 
-                  onClose={closeModal} // Opcional: para que se cierre al terminar
-              />
+              <ImportTransactions onClose={closeModal} />
            </div>
         )}
       

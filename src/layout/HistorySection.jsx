@@ -3,9 +3,10 @@ import { useFinancial } from '../context/FinancialContext';
 import { Card } from '../components/Card';
 import { formatCurrency } from '../utils/formatters';
 import { ArrowUpCircle, ArrowDownCircle, Trash2, Edit3, Tag, Filter, ArrowUpDown, Wallet, RefreshCw, ChevronUp, ChevronDown, Minus, Maximize2, History } from 'lucide-react';
+// IMPORTAMOS EL FORMULARIO
+import { TransactionForm } from '../components/TransactionForm';
 
-export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }) => {
-  // 1. AGREGAMOS 'incomeCategories' AQUÍ
+export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit, editingItem, setEditingItem }) => {
   const { filteredIncomes, filteredExpenses, deleteTransaction, wallets, categories, incomeCategories, dateFilter, themeColor, darkMode, isAllExpanded, selectedCategory, selectedWalletId } = useFinancial();
   
   const [isExpanded, setIsExpanded] = useState(true);
@@ -13,12 +14,10 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
     setIsExpanded(isAllExpanded);
   }, [isAllExpanded]);
 
-  // Estados de Filtro Local
   const [localWallet, setLocalWallet] = useState('all');
   const [localCategory, setLocalCategory] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
 
-  // Sincronización con Dashboard Global
   useEffect(() => {
       setLocalCategory(selectedCategory || 'all');
   }, [selectedCategory]);
@@ -38,16 +37,12 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
         allTransactions = allTransactions.filter(t => t.walletId === localWallet);
     }
 
-    // Filtro de Categoría (MEJORADO)
     if (localCategory !== 'all') {
         if (localCategory === 'only_incomes') {
-            // Caso 1: Solo Ingresos
             allTransactions = allTransactions.filter(t => t.type === 'income');
         } else if (localCategory === 'only_expenses') {
-            // Caso 2: Solo Gastos
             allTransactions = allTransactions.filter(t => t.type === 'expense');
         } else {
-            // Caso 3: Categoría Específica (Comportamiento original)
             allTransactions = allTransactions.filter(t => (t.category || 'Otros') === localCategory);
         }
     }
@@ -76,7 +71,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
     const count = processedTransactions.length;
     if (count === 0) return;
 
-    // Mensaje de advertencia dinámico
     const warningMsg = (localWallet === 'all' && localCategory === 'all')
         ? `⚠️ ¡PELIGRO! Estás a punto de borrar TODO el historial visible (${count} transacciones).\n\n¿Estás realmente seguro?`
         : `⚠️ ¿Estás seguro de borrar las ${count} transacciones filtradas?`;
@@ -122,6 +116,11 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
       {isExpanded && (
         <div className="animate-in fade-in slide-in-from-top-2">
             
+            {/* NUEVO: CONTENEDOR DEL FORMULARIO INYECTADO */}
+            <div className="w-full border-b pb-6 mb-6 mt-2" style={{ borderColor: darkMode ? '#334155' : '#f1f5f9' }}>
+                <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
+            </div>
+            
             {/* BARRA DE FILTROS */}
             <div className="flex flex-wrap gap-2 mb-4">
                 <div className="relative flex-1 min-w-[100px]">
@@ -139,7 +138,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                         <option value="only_incomes" className="font-bold text-emerald-600">💰 Solo Ingresos</option>
                         <option value="only_expenses" className="font-bold text-rose-600">📉 Solo Gastos</option>
                         <option disabled>────────────────</option>
-                        {/* --- MOSTRAMOS INGRESOS Y GASTOS SEPARADOS --- */}
                         <optgroup label="--- INGRESOS ---">
                             {incomeCategories.map(c => <option key={c} value={c}>{c}</option>)}
                         </optgroup>
@@ -147,7 +145,6 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                         <optgroup label="--- GASTOS ---">
                             {categories.map(c => <option key={c} value={c}>{c}</option>)}
                         </optgroup>
-
                     </select>
                 </div>
 
@@ -168,7 +165,7 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                     </button>
                 )}
 
-                 {/* 3. BOTÓN BORRADO MASIVO (SIEMPRE VISIBLE SI HAY DATOS) */}
+                 {/* 3. BOTÓN BORRADO MASIVO */}
                  {processedTransactions.length > 0 && (
                     <button 
                         onClick={handleBulkDelete} 
