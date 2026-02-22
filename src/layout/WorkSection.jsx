@@ -309,7 +309,7 @@ export const WorkSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEd
             {(activeTab === 'logs' || activeTab === 'payments') && (
                 <div className="flex gap-2 items-center">
                     <div className={`flex p-1 rounded-xl`}>
-                        <button onClick={() => setViewType('calendar')} className={`p-1.5 rounded-lg transition-all') : 'text-slate-400'}`}><CalendarIcon size={14}/></button>
+                        <button onClick={() => setViewType('calendar')} className={`p-1.5 rounded-lg transition-all') : 'text-slate-400'}`} aria-label="Vista calendario"><CalendarIcon size={14}/></button>
                         <button onClick={() => setViewType('list')} className={`p-1.5 rounded-lg transition-all `}><List size={14}/></button>
                     </div>
 

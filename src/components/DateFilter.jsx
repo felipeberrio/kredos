@@ -17,7 +17,7 @@ export const DateFilter = () => {
   };
 
   return (
-    <div className={`p-1.5 rounded-2xl border flex items-center gap-2 transition-all ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'}`}>
+    <div className={`p-2 rounded-xl border flex items-center gap-2 transition-all duration-200 ${darkMode ? 'bg-slate-800/60 border-slate-700/50' : 'bg-slate-50 border-slate-200/80'}`}>
       
       <div className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-100'} text-slate-500`}>
         <Filter size={16} />

@@ -159,13 +159,12 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
 
   return (
     // CAMBIO 1: Eliminamos min-h-[500px] y ponemos h-auto para que sea compacta
-    <Card className={`flex flex-col transition-all duration-300 h-auto ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white'}`}>
+    <Card className="flex flex-col h-auto overflow-hidden">
       
-      {/* HEADER: PESTAÑAS (Más compacto mb-3 en vez de mb-4) */}
-      <div className={`flex p-1 rounded-xl mb-3 shrink-0 ${darkMode ? 'bg-slate-800' : 'bg-slate-100'}`}>
+      <div className={`flex p-1.5 rounded-xl mb-4 shrink-0 ${darkMode ? 'bg-slate-800/60' : 'bg-slate-100'}`}>
         <button 
             onClick={() => { setActiveTab('form'); if(!editingItem) setShowForm(false); }}
-            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'form' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 ${activeTab === 'form' ? 'shadow-sm': 'text-slate-500 font-medium hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
             style={{ color: activeTab === 'form' ? themeColor : undefined,
                     backgroundColor: activeTab === 'form' 
                     ? (darkMode ? `${themeColor}15` : '#ffffff') 
@@ -175,7 +174,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
         </button>
         <button 
             onClick={() => setActiveTab('analysis')}
-            className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${activeTab === 'analysis' ? 'shadow-sm font-black': 'text-slate-400 font-bold hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
+            className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 hover:opacity-90 ${activeTab === 'analysis' ? 'shadow-sm': 'text-slate-500 font-medium hover:bg-slate-200/50 dark:hover:bg-slate-700/50'}`}
             style={{ color: activeTab === 'analysis' ? themeColor : undefined,
                     backgroundColor: activeTab === 'analysis' 
                     ? (darkMode ? `${themeColor}15` : '#ffffff') 
@@ -361,7 +360,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                       <div className={`p-1.5 rounded-full ${darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><TrendingUp size={16}/></div>
                       <div>
                           <p className="text-[9px] font-bold uppercase text-slate-400">Ingresos</p>
-                          <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.income)}</p>
+                          <p className={`text-sm font-bold tabular-nums ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.income)}</p>
                       </div>
                   </div>
 
@@ -369,7 +368,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
                       <div className={`p-1.5 rounded-full ${darkMode ? 'bg-rose-900/30 text-rose-400' : 'bg-rose-100 text-rose-600'}`}><TrendingDown size={16}/></div>
                       <div>
                           <p className="text-[9px] font-bold uppercase text-slate-400">Gastos</p>
-                          <p className={`text-sm font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.expense)}</p>
+                          <p className={`text-sm font-bold tabular-nums ${darkMode ? 'text-white' : 'text-slate-800'}`}>{privacyMode ? '****' : formatCurrency(analysisData.expense)}</p>
                       </div>
                   </div>
               </div>
@@ -384,7 +383,7 @@ export const TransactionForm = ({ editingItem, setEditingItem }) => {
               >
                   <div className="relative z-10 w-full text-center">
                       <p className="text-[9px] font-bold uppercase text-slate-400 mb-0.5">Balance Neto</p>
-                      <p className="text-xl font-black" style={{ color: themeColor }}>
+                      <p className="text-xl font-bold tabular-nums" style={{ color: themeColor }}>
                           {privacyMode ? '****' : formatCurrency(analysisData.balance)}
                       </p>
                   </div>

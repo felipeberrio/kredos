@@ -197,7 +197,7 @@ export default function App() {
       }
   };
 
-  const modalInputStyle = { backgroundColor: darkMode ? '#1e293b' : '#f1f5f9', color: darkMode ? '#fff' : '#0f172a' };
+  const modalInputStyle = { backgroundColor: darkMode ? '#1e293b' : '#f8fafc', color: darkMode ? '#f1f5f9' : '#0f172a', border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}` };
 
   // ESTADOS PARA PERFIL DE USUARIO
   const [profileName, setProfileName] = useState('');
@@ -272,45 +272,37 @@ export default function App() {
 
   return (
     <div 
-      className={`min-h-screen pb-12 transition-colors duration-300 ${darkMode ? 'text-white' : 'text-slate-900'}`}
+      className={`min-h-screen pb-16 transition-colors duration-300 ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}
       style={{ 
         backgroundColor: useSemanticColors 
-          ? (darkMode ? '#020617' : '#F8FAFC') // MODO SEMÁNTICO: El Gris/Slate original
-          : (darkMode ? '#020617' : `${themeColor}15`) // MODO TEMA: Tu color con 6% de opacidad 10` (Efecto Tinte)
+          ? (darkMode ? '#0f172a' : '#F8FAFC')
+          : (darkMode ? '#0f172a' : `${themeColor}08`)
       }}
-    >  
-    {/* --- HEADER NUEVO (EFECTO ESPEJO IPHONE + SIN ESPACIO ARRIBA) --- */}
-    <div className={`sticky top-0 z-50 mb-6 px-6  rounded-b-3xl shadow-sm flex justify-between items-center transition-all backdrop-blur-xl border-b-[1px] ${darkMode ? 'bg-slate-950/50 border-white/5 text-white' : 'bg-white/40 border-white/40 text-slate-800'}`}> 
+    >
+    {/* Header Premium */}
+    <header className={`sticky top-0 z-50 mb-6 px-4 sm:px-6 rounded-b-2xl flex justify-between items-center transition-all duration-300 backdrop-blur-xl ${darkMode ? 'bg-slate-900/80 border-b border-slate-700/50 shadow-card-dark' : 'bg-white/90 border-b border-slate-200/60 shadow-card'}`}> 
         {/* --- HEADER UNIFICADO (HORIZONTAL + TRANSPARENTE) --- */}
       
-        <div className="w-full px-4 py-2 h-16 flex items-center gap-4 overflow-hidden">
-            
-            {/* 1. SECCIÓN IZQUIERDA (ESTÁTICA) */}
-            <div className="flex items-center gap-4 shrink-0">
-                {/* Logo */}
+        <div className="w-full px-2 sm:px-4 py-3 h-16 sm:h-18 flex items-center gap-3 sm:gap-4 overflow-hidden">
+            {/* Logo + Usuario */}
+            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0" style={{ backgroundColor: themeColor }}>$</div>
-                    <h1 className="text-xl font-black tracking-tight leading-none hidden xl:block">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-white shadow-lg shrink-0 transition-transform hover:scale-105 active:scale-95" style={{ backgroundColor: themeColor }}>$</div>
+                    <h1 className="text-lg sm:text-xl font-black tracking-tight leading-none hidden xl:block">FINPLAN<span style={{ color: themeColor }}>PRO</span></h1>
                 </div>
-
-                {/* Divisor */}
-                <div className="h-8 w-px bg-slate-200 dark:bg-white/10 hidden lg:block"></div>
-
-                {/* Usuario */}
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 border border-slate-200/50 dark:border-white/5">
-                    <div className="p-1 rounded-full text-white" style={{ backgroundColor: themeColor }}><User size={12} strokeWidth={3}/></div>
-                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{displayName}</span>
+                <div className="h-7 w-px bg-slate-200 dark:bg-slate-600 hidden lg:block" />
+                <div className="hidden lg:flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/50">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0" style={{ backgroundColor: themeColor }}><User size={14} strokeWidth={2.5}/></div>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">{displayName}</span>
                 </div>
-
-                {/* 5. HERO INTEGRADO (PATRIMONIO + DATOS DE CRÉDITO) */}
-                <div className="flex items-center gap-4 hidden lg:flex animate-in fade-in slide-in-from-left-4">
+                {/* Balance destacado */}
+                <div className="flex items-center gap-4 hidden lg:flex">
                     
-                    {/* BLOQUE A: Nombre y Saldo Principal */}
                     <div className="flex flex-col justify-center min-w-[100px]">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-0.5">
                             {headerData.name}
                         </span>
-                        <span className="text-2xl font-black leading-none" style={{ color: darkMode ? 'white' : themeColor }}>
+                        <span className="text-xl sm:text-2xl font-black leading-none tabular-nums tracking-tight" style={{ color: darkMode ? '#f8fafc' : themeColor }}>
                             {privacyMode ? '****' : formatCurrency(headerData.balance)}
                         </span>
                     </div>
@@ -355,8 +347,7 @@ export default function App() {
                 </div>
             </div>
 
-            {/* 2. SECCIÓN CENTRAL: WALLETS (FLEXIBLE Y SCROLLABLE) */}
-            <div className="flex-1 overflow-x-auto scrollbar-hide border-l border-r border-slate-200/50 dark:border-white/5 mx-2 px-2 mask-linear-fade">
+            <div className="flex-1 overflow-x-auto scrollbar-hide border-l border-r border-slate-200/50 dark:border-slate-700/50 mx-2 px-2 mask-linear-fade min-w-0">
                  <HeaderWallets 
                     onAdd={() => handleOpenModal('wallet')} 
                     onEdit={(item) => handleOpenModal('wallet', item)} 
@@ -369,8 +360,7 @@ export default function App() {
         
         
       </div>
-        {/* DERECHA: GRUPO DE ACCIONES (Menú Desplegable + Ajustes + Salir) */}
-        <div className="flex items-center gap-2 py-2">
+        <div className="flex items-center gap-1 sm:gap-2 py-2 shrink-0">
             
             {/* 1. MENÚ DESPLEGABLE (Se expande hacia la izquierda) */}
             <div className={`flex items-center gap-3 transition-all duration-300 origin-right overflow-hidden ${isSettingsOpen ? 'w-auto opacity-100 scale-100 mr-2' : 'w-0 opacity-0 scale-95'}`}>
@@ -409,56 +399,26 @@ export default function App() {
                 </div>
             </div>
 
-            {/* --- NUEVO BOTÓN: MENU LATERAL --- */}
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className={`p-2 rounded-full transition-all hover:bg-slate-100 dark:hover:bg-slate-700 ${isSidebarOpen ? 'text-blue-500 bg-slate-100 dark:bg-slate-800' : 'text-slate-400'}`}
-              title="Abrir Menú de Gestión"
-            >
-              <Menu size={20}/>
+            <button onClick={() => setIsSidebarOpen(true)} className={`p-2.5 rounded-xl transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-800 active:scale-95 ${isSidebarOpen ? 'text-blue-500 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`} title="Menú de gestión">
+              <Menu size={20} strokeWidth={2}/>
             </button>
-
-            {/* NUEVO BOTÓN: IMPORTAR TRANSACCIONES */}
-            <button 
-              onClick={() => handleOpenModal('import')}
-              className={`p-2 rounded-full transition-all text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-emerald-500`}
-              title="Importar CSV Banco"
-            >
-              <UploadCloud size={20}/>
+            <button onClick={() => handleOpenModal('import')} className="p-2.5 rounded-xl transition-all duration-200 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-500 active:scale-95" title="Importar CSV">
+              <UploadCloud size={20} strokeWidth={2}/>
             </button>
-
-            {/* NUEVO BOTÓN: PERFIL DE USUARIO */}
-            <button 
-              onClick={() => handleOpenModal('profile')}
-              className="p-2 rounded-full transition-all text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-indigo-500"
-              title="Mi Perfil"
-            >
-              <User size={20}/>
+            <button onClick={() => handleOpenModal('profile')} className="p-2.5 rounded-xl transition-all duration-200 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-500 active:scale-95" title="Mi perfil">
+              <User size={20} strokeWidth={2}/>
             </button>
-
-            {/* 2. BOTÓN AJUSTES (SOLO RUEDITA) */}
-            <button 
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className={`p-2 rounded-full transition-all text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 ${isSettingsOpen ? 'bg-slate-100 dark:bg-slate-700 text-blue-500' : ''}`}
-              title="Ajustes"
-            >
-              <Settings size={20} className={isSettingsOpen ? 'rotate-90 transition-transform' : 'transition-transform'}/>
+            <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className={`p-2.5 rounded-xl transition-all duration-200 ${isSettingsOpen ? 'text-blue-500 bg-slate-100 dark:bg-slate-800' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'}`} title="Ajustes">
+              <Settings size={20} strokeWidth={2} className={isSettingsOpen ? 'rotate-90 transition-transform duration-200' : ''}/>
             </button>
-
-            {/* 3. BOTÓN SALIR */}
-            <button 
-                onClick={signOut} 
-                className="p-2 rounded-full text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all" 
-                title="Cerrar Sesión"
-            >
-                <LogOut size={20}/>
+            <button onClick={signOut} className="p-2.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-200 active:scale-95" title="Cerrar sesión">
+              <LogOut size={20} strokeWidth={2}/>
             </button>
         </div>
-      </div>
-      
+    </header>
 
-      <main className={`max-w-7xl mx-auto px-4 mt-8 transition-all duration-300 ${isSidebarPinned && isSidebarOpen ? 'mr-[24rem] max-w-none' : ''}`}>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className={`max-w-7xl mx-auto px-4 sm:px-6 mt-6 sm:mt-8 transition-all duration-300 ${isSidebarPinned && isSidebarOpen ? 'mr-[24rem] max-w-none pr-4' : ''}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           {/* COLUMNA IZQUIERDA (Estrecha) */}
           <div className="lg:col-span-4 space-y-6">
             {/* 1. Formulario de Transacciones */}
@@ -490,29 +450,15 @@ export default function App() {
     />
     )}
 
-    {/* 2. EL PANEL LATERAL */}
-{/* 2. EL PANEL LATERAL (LÍNEA MODIFICADA PARA CORREGIR COLOR) */}
-    <div className={`fixed inset-y-0 right-0 z-[70] w-96 shadow-2xl transform transition-transform duration-300 ease-in-out border-l flex flex-col ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${darkMode ? 'bg-slate-900 border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'}`}>    
-    {/* Cabecera del Sidebar */}
-    <div className={`flex items-center justify-between p-4 border-b shrink-0 ${darkMode ? 'border-white/5' : 'border-slate-100'}`}>
-        <span className="text-sm font-black uppercase tracking-widest text-slate-500">Gestión Financiera</span>
-        
+    <div className={`fixed inset-y-0 right-0 z-[70] w-full sm:w-96 shadow-premium dark:shadow-premium-dark transform transition-transform duration-300 ease-out border-l flex flex-col ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${darkMode ? 'bg-slate-900 border-slate-700/50' : 'bg-white border-slate-200'}`}>    
+    <div className={`flex items-center justify-between p-4 border-b shrink-0 ${darkMode ? 'border-slate-700/50' : 'border-slate-100'}`}>
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Gestión</span>
         <div className="flex items-center gap-1">
-            {/* BOTÓN PIN (FIJAR) */}
-            <button 
-            onClick={() => setIsSidebarPinned(!isSidebarPinned)}
-            className={`p-2 rounded-full transition-all ${isSidebarPinned ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            title={isSidebarPinned ? "Desfijar menú" : "Fijar menú"}
-            >
-            {isSidebarPinned ? <Pin size={18} className="fill-current" /> : <Pin size={18} />}
+            <button onClick={() => setIsSidebarPinned(!isSidebarPinned)} className={`p-2.5 rounded-xl transition-all duration-200 ${isSidebarPinned ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'}`} title={isSidebarPinned ? "Desfijar" : "Fijar"}>
+              <Pin size={18} strokeWidth={2} className={isSidebarPinned ? 'fill-current' : ''} />
             </button>
-
-            {/* BOTÓN CERRAR */}
-            <button 
-            onClick={() => { setIsSidebarOpen(false); setIsSidebarPinned(false); }}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-colors"
-            >
-            <X size={20} />
+            <button onClick={() => { setIsSidebarOpen(false); setIsSidebarPinned(false); }} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-rose-500 transition-all duration-200">
+              <X size={20} strokeWidth={2}/>
             </button>
         </div>
     </div>

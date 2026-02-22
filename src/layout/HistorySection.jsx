@@ -113,7 +113,7 @@ export const HistorySection = ({ onMoveUp, onMoveDown, isFirst, isLast, onEdit }
                 {!isFirst && <button onClick={onMoveUp} className="text-slate-300 hover:text-slate-500"><ChevronUp size={10} strokeWidth={3}/></button>}
                 {!isLast && <button onClick={onMoveDown} className="text-slate-300 hover:text-slate-500"><ChevronDown size={10} strokeWidth={3}/></button>}
             </div>
-            <button onClick={() => setIsExpanded(!isExpanded)} className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 hover:text-slate-700 dark:hover:text-slate-200">
                 {isExpanded ? <Minus size={16}/> : <Maximize2 size={16}/>}
             </button>
         </div>

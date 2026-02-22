@@ -7,7 +7,8 @@ Aplicación web de gestión financiera personal, construida con arquitectura mod
 * **Estilos:** Tailwind CSS
 * **Iconos:** Lucide React
 * **Gráficos:** Recharts
-* **Persistencia:** LocalStorage (Custom Hook)
+* **Persistencia:** LocalStorage + Supabase
+* **Testing:** Vitest + React Testing Library
 
 ## 🚀 Instalación y Ejecución
 
@@ -25,6 +26,40 @@ Si descargas este proyecto por primera vez:
     ```bash
     npm run build
     ```
+
+## 🧪 Pruebas (Testing)
+
+### Comandos de test
+
+| Comando | Descripción |
+|---------|-------------|
+| `npm test` | Ejecuta tests en modo watch (se re-ejecutan al guardar cambios) |
+| `npm run test:run` | Ejecuta la suite completa una sola vez |
+| `npm run test:coverage` | Ejecuta tests y genera reporte de cobertura |
+
+### Ver el reporte de cobertura
+
+1. Ejecuta:
+   ```bash
+   npm run test:coverage
+   ```
+2. Abre el reporte HTML generado en `coverage/index.html` con tu navegador:
+   ```bash
+   # En Windows
+   start coverage/index.html
+
+   # En macOS/Linux
+   open coverage/index.html
+   ```
+
+### Estructura de tests
+
+- **Unit Tests:** `src/utils/financialCalculations.test.js` — Lógica de cálculo (totales, balance, horas de trabajo)
+- **Integration Tests:**
+  - `src/components/TransactionForm.test.jsx` — Formulario de gastos/ingresos
+  - `src/layout/WorkSection.test.jsx` — Calendario de turnos
+
+Los tests usan mocks de Supabase, por lo que **no requieren conexión a internet**.
 
 ## ✅ Funcionalidades Implementadas
 1.  **Dashboard Principal:**
@@ -47,11 +82,6 @@ Si descargas este proyecto por primera vez:
     * **Gráficos:** Distribución de gastos (Dona) y tendencias (Área).
 
 ## 🚧 Pendiente / Roadmap
-* [ ] Edición de transacciones existentes.
-* [ ] Filtros avanzados en el historial (por fecha o categoría).
-* [ ] Simulador de gastos ("What If").
-* [ ] Categorías personalizables por el usuario.
-* [ ] Exportación de datos a Excel/CSV.
-
+* 
 ---
 **Desarrollado con ❤️ para control total de tus finanzas.**
