@@ -56,6 +56,38 @@ export const FinancialProvider = ({ children }) => {
   const [localIncomeCategories, setLocalIncomeCategories] = useLocalStorage('fin_income_categories', DEFAULT_INCOME_CATS);
 
 
+
+
+  // --- PEGA ESTO ANTES DEL 'const value = ...' ---
+
+// 1. Calcular flujo histórico (Ingresos - Gastos) de una wallet
+const getWalletNetFlow = (walletId) => {
+    // Sumar ingresos
+    const totalIncome = incomes
+      .filter(t => t.walletId === walletId)
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+    
+    // Sumar gastos
+    const totalExpense = expenses
+      .filter(t => t.walletId === walletId)
+      .reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
+
+    return totalIncome - totalExpense;
+};
+
+// 2. Actualizar Wallet basándonos en el Saldo Inicial (Matemática Inversa)
+const updateWalletFromInitial = async (wallet, newInitialBalance) => {
+    const netFlow = getWalletNetFlow(wallet.id);
+    const newFinalBalance = Number(newInitialBalance) + netFlow;
+
+    // Llamamos a la función updateWallet original con el saldo calculado
+    await updateWallet({
+        ...wallet,
+        balance: newFinalBalance
+    });
+};
+
+
   const categories = user 
     ? (cloudData.categories && cloudData.categories.length > 0 ? cloudData.categories : localCategories) 
     : localCategories;
@@ -1176,7 +1208,8 @@ const unmarkWorkAsPaid = (log) => updateWorkLog({
     useSemanticColors, setUseSemanticColors,
     addShoppingItem, toggleShoppingStatus, toggleShoppingFavorite, deleteShoppingItem, updateShoppingItem,
     currency, setCurrency, formatMoney, 
-    addWallet, addGoal, addSubscription, addBudget
+    addWallet, addGoal, addSubscription, addBudget, getWalletNetFlow, 
+    updateWalletFromInitial,
   };
 
   return <FinancialContext.Provider value={value}>{children}</FinancialContext.Provider>;

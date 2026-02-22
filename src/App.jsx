@@ -30,48 +30,21 @@ export default function App() {
     
   const { user, signOut } = useAuth(); // <--- Obtener usuario y función de cerrar sesión
 
-  const { 
-    darkMode, setDarkMode, 
-    themeColor, setThemeColor, 
-    wallets, setWallets, goals, setGoals: setGlobalGoals, 
-    subscriptions, setSubscriptions: setGlobalSubs,
-    budgets, setBudgets: setGlobalBudgets, categories,
-    workLogs, addWorkLog, updateWorkLog, 
-    companies, addCompany, updateCompany,
-    addWallet, addGoal, addSubscription, addBudget,
-    updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, setIsAllExpanded,
-    calculatePayDate,totalBalance,selectedWalletId,
-    
-    // --- VARIABLES RESTAURADAS ---
-    useSemanticColors, setUseSemanticColors, // <--- AQUÍ ESTÁ SEMÁNTICO
-    privacyMode, setPrivacyMode,
-    currency, setCurrency
-  } = useFinancial();
+  const { darkMode, setDarkMode, themeColor, setThemeColor, wallets, setWallets, goals, setGoals: setGlobalGoals, subscriptions, setSubscriptions: setGlobalSubs,budgets, setBudgets: setGlobalBudgets, categories,workLogs, addWorkLog, updateWorkLog, companies, addCompany, updateCompany,addWallet, addGoal, addSubscription, addBudget,updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, setIsAllExpanded,calculatePayDate,totalBalance,selectedWalletId,getWalletNetFlow,updateWalletFromInitial,useSemanticColors, setUseSemanticColors,privacyMode, setPrivacyMode,currency, setCurrency} = useFinancial();
 
-  // 2. VERIFICACIÓN DE SEGURIDAD (AGREGAR ESTO ANTES DEL RETURN)
-  if (!user) {
-    return <Login />;
-  }
-  
-  // ORDEN COLUMNA IZQUIERDA
-  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['categories', 'budgets', 'goals', 'subs']);
-  
-  // ORDEN COLUMNA DERECHA
-  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v3', ['work', 'events', 'history']);
+
+  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['categories', 'budgets', 'goals', 'subs']); // ORDEN COLUMNA IZQUIERDA
+  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v3', ['work', 'events', 'history']); // ORDEN COLUMNA DERECHA
+
   const [editingItem, setEditingItem] = useState(null);
-  
-  // MODALS
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
   const [itemToEdit, setItemToEdit] = useState(null);
   const [projectionOpen, setProjectionOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);  // ESTADO AJUSTES HEADER
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // NUEVO: Estado para el Menú Lateral de Secciones
+  const [isSidebarPinned, setIsSidebarPinned] = useState(false); // NUEVO: Estado para saber si el menú está "Fijado"
 
-  // ESTADO AJUSTES HEADER
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-// NUEVO: Estado para el Menú Lateral de Secciones
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  // NUEVO: Estado para saber si el menú está "Fijado"
-  const [isSidebarPinned, setIsSidebarPinned] = useState(false);
   // INPUTS GENERALES
   const [newWalletName, setNewWalletName] = useState(''); const [newWalletBalance, setNewWalletBalance] = useState(''); const [newWalletType, setNewWalletType] = useState('cash'); const [newWalletLimit, setNewWalletLimit] = useState('');
   const [newGoalName, setNewGoalName] = useState(''); const [newGoalTarget, setNewGoalTarget] = useState(''); const [newGoalSaved, setNewGoalSaved] = useState('');
@@ -97,30 +70,10 @@ export default function App() {
   const [compTips, setCompTips] = useState(false); 
   const [compSchedule, setCompSchedule] = useState({ mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0, sun: 0 });
 
-  // EFECTOS
-  useEffect(() => { 
-      if (workStart && workEnd && workRate) { 
-          const [h1, m1] = workStart.split(':').map(Number); 
-          const [h2, m2] = workEnd.split(':').map(Number); 
-          let diff = (h2 + m2/60) - (h1 + m1/60); 
-          if (diff < 0) diff += 24; 
-          setWorkHoursCalc(diff.toFixed(2)); 
-          setWorkTotalCalc(diff * Number(workRate)); 
-      } else { 
-          setWorkTotalCalc(0); setWorkHoursCalc(0); 
-      } 
-  }, [workStart, workEnd, workRate]);
+  useEffect(() => { if (workStart && workEnd && workRate) { const [h1, m1] = workStart.split(':').map(Number); const [h2, m2] = workEnd.split(':').map(Number); let diff = (h2 + m2/60) - (h1 + m1/60); if (diff < 0) diff += 24; setWorkHoursCalc(diff.toFixed(2)); setWorkTotalCalc(diff * Number(workRate)); } else { setWorkTotalCalc(0); setWorkHoursCalc(0);} }, [workStart, workEnd, workRate]);
+  useEffect(() => { if (selectedCompanyId) { const comp = companies.find(c => c.id === selectedCompanyId); if (comp) { if(!workRate) setWorkRate(comp.rate); const estimatedPay = calculatePayDate(workDate, comp); setWorkPaymentDate(estimatedPay); } } }, [selectedCompanyId, workDate, companies]);
 
-  useEffect(() => { 
-      if (selectedCompanyId) { 
-          const comp = companies.find(c => c.id === selectedCompanyId); 
-          if (comp) { 
-              if(!workRate) setWorkRate(comp.rate); 
-              const estimatedPay = calculatePayDate(workDate, comp); 
-              setWorkPaymentDate(estimatedPay); 
-          } 
-      } 
-  }, [selectedCompanyId, workDate, companies]);
+  if (!user) {return <Login />;}   // 2. VERIFICACIÓN DE SEGURIDAD (AGREGAR ESTO ANTES DEL RETURN)
 
   // GESTIÓN DE ORDENAMIENTO
   const moveLeftSection = (index, direction) => {
@@ -144,7 +97,7 @@ export default function App() {
       setModalType(type); setItemToEdit(item); setModalOpen(true); cleanInputs();
       if (item) {
           if(type === 'profile') {setProfileName(user?.user_metadata?.full_name || '');setProfilePassword('');}
-          if(type === 'wallet') { setNewWalletName(item.name); setNewWalletBalance(item.balance); setNewWalletType(item.type); setNewWalletLimit(item.limit || ''); }
+          if(type === 'wallet') { setNewWalletName(item.name); const netFlow = getWalletNetFlow(item.id);setNewWalletBalance(Number(item.balance) - netFlow); setNewWalletType(item.type);setNewWalletLimit(item.limit || '');}     
           if(type === 'goal') { setNewGoalName(item.name); setNewGoalTarget(item.target); setNewGoalSaved(item.saved); setNewGoalDeadline(item.deadline || ''); setNewGoalFrequency(item.frequency || 'monthly'); setNewGoalInstallment(item.installment || ''); setNewGoalStartDate(item.startDate || new Date().toISOString().split('T')[0]); }
           if(type === 'sub') { setNewSubName(item.name); setNewSubPrice(item.price); setNewSubDay(item.day); }
           if(type === 'budget') { setNewBudgetCat(item.category); setNewBudgetLimit(item.limit); }
@@ -174,7 +127,7 @@ export default function App() {
   };
   
   // SAVE HANDLERS
-  const handleSaveWallet = (e) => { e.preventDefault(); if(!newWalletName) return; const data = { id: itemToEdit ? itemToEdit.id : Date.now().toString(), name: newWalletName, type: newWalletType, balance: Number(newWalletBalance) || 0, limit: newWalletType === 'credit' ? (Number(newWalletLimit) || 0) : 0 }; if(itemToEdit) updateWallet(data); else addWallet(data); closeModal(); };
+  const handleSaveWallet = (e) => { e.preventDefault(); if(!newWalletName) return; if(itemToEdit) {updateWalletFromInitial(itemToEdit, newWalletBalance);} else {const data = { id: Date.now().toString(), name: newWalletName, type: newWalletType, balance: Number(newWalletBalance) || 0, limit: newWalletType === 'credit' ? (Number(newWalletLimit) || 0) : 0 }; addWallet(data); } closeModal(); };  
   const handleSaveGoal = (e) => { e.preventDefault(); if(!newGoalName) return; const data = { id: itemToEdit ? itemToEdit.id : Date.now().toString(), name: newGoalName, target: Number(newGoalTarget), saved: Number(newGoalSaved) || 0, deadline: newGoalDeadline, frequency: newGoalFrequency, installment: Number(newGoalInstallment), startDate: newGoalStartDate}; if(itemToEdit) updateGoal(data); else addGoal(data); closeModal(); };
   const handleSaveSub = (e) => { e.preventDefault(); if(!newSubName) return; const data = { id: itemToEdit ? itemToEdit.id : Date.now().toString(), name: newSubName, price: Number(newSubPrice), day: Number(newSubDay) || 1 }; if(itemToEdit) updateSubscription(data); else addSubscription(data); closeModal(); };
   const handleSaveBudget = (e) => { e.preventDefault(); if(!newBudgetLimit) return; if (!itemToEdit && budgets.find(b => b.category === newBudgetCat)) { alert("Ya existe"); return; } const data = { id: itemToEdit ? itemToEdit.id : Date.now().toString(), category: newBudgetCat, limit: Number(newBudgetLimit) }; if(itemToEdit) updateBudget(data); else addBudget(data); closeModal(); };
@@ -314,6 +267,9 @@ export default function App() {
 
       return { isCredit, balance, name, limit, used, available, percent };
   }, [activeWallet, totalBalance]);
+
+
+  
 
 
   return (
