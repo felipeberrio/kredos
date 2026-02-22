@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/formatters';
 export const BudgetSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, onEdit }) => {
   const { budgets, getBudgetProgress, deleteBudget, darkMode, themeColor, selectedCategory, setSelectedCategory, isAllExpanded } = useFinancial();
   const [isExpanded, setIsExpanded] = useState(true);
+  
   useEffect(() => {
     setIsExpanded(isAllExpanded);
   }, [isAllExpanded]);
@@ -64,10 +65,12 @@ export const BudgetSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, on
       </div>
 
       {isExpanded && (
-        <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+        // Contenedor principal rediseñado para Scroll Horizontal
+        <div className="mt-4 flex gap-4 overflow-x-auto pb-4 pt-2 px-1 snap-x snap-mandatory custom-scrollbar animate-in fade-in slide-in-from-top-2">
             {budgets.map(b => {
                 const spent = getBudgetProgress(b.category);
-                const percentage = b.limit > 0 ? Math.min((spent / b.limit) * 100, 100) : 0;
+                const rawPercentage = b.limit > 0 ? (spent / b.limit) * 100 : 0;
+                const percentage = Math.min(rawPercentage, 100); // Tope visual al 100%
                 const isOver = spent > b.limit;
                 const remaining = b.limit - spent;
                 const isSelected = selectedCategory === b.category;
@@ -80,67 +83,71 @@ export const BudgetSection = ({ onMoveUp, onMoveDown, isFirst, isLast, onAdd, on
                     <div 
                         key={b.id} 
                         onClick={() => handleBudgetClick(b.category)}
-                        className={`group relative p-2 rounded-xl transition-all duration-300 cursor-pointer border -mx-2
-                            ${isSelected 
-                                ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800' 
-                                : 'border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/30'
-                            }`}
+                        className={`group relative flex flex-col items-center shrink-0 w-[110px] sm:w-[125px] transition-all cursor-pointer snap-center rounded-2xl p-2 ${
+                            isSelected 
+                                ? 'bg-blue-50 dark:bg-blue-900/20 shadow-sm' 
+                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'
+                        }`}
                     >
-                        <div className="flex justify-between items-end mb-1">
-                            <div className="flex flex-col">
-                                <span className={`text-xs font-bold flex items-center gap-1 ${isSelected ? 'text-blue-600 dark:text-blue-400' : ''}`}>
-                                    {b.category}
-                                    {isSelected && <Filter size={10} className="animate-pulse"/>}
-                                    {isOver && <AlertTriangle size={12} className="text-rose-500 animate-pulse"/>}
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className={`text-[10px] font-black ${isOver ? 'text-rose-500' : 'text-slate-500'}`}>
-                                    {formatCurrency(spent)} / {formatCurrency(b.limit)}
-                                </span>
-                            </div>
+                        {/* Status (Disponible / Excedido) */}
+                        <div className="flex flex-col items-center mb-4 h-10 justify-end text-center">
+                            <span className={`text-[9px] font-bold uppercase tracking-wider ${isOver ? 'text-rose-500' : 'text-emerald-500'}`}>
+                                {isOver ? 'Excedido' : 'Disponible'}
+                            </span>
+                            <span className={`text-sm font-black tracking-tight ${isOver ? 'text-rose-600' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {formatCurrency(Math.abs(remaining))}
+                            </span>
                         </div>
-                        
-                        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden relative border border-slate-100 dark:border-slate-700">
+
+                        {/* La Barra Vertical */}
+                        <div className="relative w-16 sm:w-20 h-48 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col justify-end p-1.5 transition-colors group-hover:border-slate-300 dark:group-hover:border-slate-600">
+                            
+                            {/* Botones de acción flotantes (Hover) */}
+                            <div className="absolute -right-3 -top-3 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                                <button onClick={(e) => { e.stopPropagation(); onEdit(b); }} className="p-2 bg-white dark:bg-slate-800 text-blue-500 rounded-full shadow-md hover:scale-110 transition-transform"><Edit3 size={12}/></button>
+                                <button onClick={(e) => { e.stopPropagation(); deleteBudget(b.id); }} className="p-2 bg-white dark:bg-slate-800 text-rose-500 rounded-full shadow-md hover:scale-110 transition-transform"><Trash2 size={12}/></button>
+                            </div>
+
+                            {/* Relleno de progreso */}
                             <div 
-                                className={`h-full transition-all duration-1000 ${isOver ? 'bg-rose-500' : ''}`}
+                                className={`w-full rounded-[1.75rem] transition-all duration-1000 ease-out flex flex-col items-center justify-start pt-3 overflow-hidden shadow-inner ${isOver ? 'bg-rose-500' : ''}`}
                                 style={{ 
-                                    width: `${percentage}%`, 
+                                    height: `${Math.max(percentage, 18)}%`, // 18% mínimo para que no se corte el texto
                                     backgroundColor: isOver ? undefined : themeColor 
                                 }}
-                            />
+                            >
+                                <span className="text-white font-black text-xs sm:text-sm tracking-tight drop-shadow-md">
+                                    {Math.round(rawPercentage)}%
+                                </span>
+                            </div>
                         </div>
                         
-                        <div className="flex justify-between mt-1.5 items-center">
-                            <div className="flex flex-col">
-                                {/* Estado Restante */}
-                                <span className="text-[8px] font-bold text-slate-400">
-                                    {isOver ? 'Excedido' : 'Disponible'}: <span className={isOver ? 'text-rose-500' : 'text-emerald-500'}>{formatCurrency(Math.abs(remaining))}</span>
-                                </span>
-                                
-                                {/* Info Semanal: Ideal vs Actual */}
-                                <div className="flex gap-2 mt-0.5">
-                                    <span className="text-[8px] font-bold text-slate-400 flex items-center gap-1">
-                                        Ideal: <span className="text-slate-500 dark:text-slate-300">{formatCurrency(weeklyIdeal)}/sem</span>
+                        {/* Info Inferior */}
+                        <div className="mt-4 flex flex-col items-center text-center w-full">
+                            <span className={`text-sm font-bold flex items-center justify-center gap-1 w-full truncate px-1 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {b.category}
+                                {isSelected && <Filter size={10} className="animate-pulse shrink-0"/>}
+                                {isOver && <AlertTriangle size={10} className="text-rose-500 animate-pulse shrink-0"/>}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 mt-1">
+                                {formatCurrency(spent)} / {formatCurrency(b.limit)}
+                            </span>
+
+                            {/* Info Semanal Compacta */}
+                            <div className="mt-2 flex flex-col items-center text-[9px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800/80 rounded-lg py-1.5 px-2 w-full border border-slate-200/50 dark:border-slate-700/50">
+                                <span className="mb-0.5">Ideal: {formatCurrency(weeklyIdeal)}/s</span>
+                                {!isOver && (
+                                    <span className={weeklyActual < weeklyIdeal ? 'text-rose-500' : 'text-emerald-500'}>
+                                        Act: {formatCurrency(weeklyActual)}/s
                                     </span>
-                                    {!isOver && (
-                                        <span className="text-[8px] font-bold text-slate-400 flex items-center gap-1 border-l border-slate-200 dark:border-slate-700 pl-2">
-                                            Actual: <span className={`${weeklyActual < weeklyIdeal ? 'text-rose-400' : 'text-emerald-500'}`}>{formatCurrency(weeklyActual)}/sem</span>
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); onEdit(b); }} className="text-[8px] text-blue-400 hover:text-blue-600 font-bold uppercase"><Edit3 size={10}/></button>
-                                <button onClick={(e) => { e.stopPropagation(); deleteBudget(b.id); }} className="text-[8px] text-rose-400 hover:text-rose-600 font-bold uppercase"><Trash2 size={10}/></button>
+                                )}
                             </div>
                         </div>
                     </div>
                 );
             })}
             
-            {budgets.length === 0 && <p className="text-center text-slate-400 text-[10px] py-2 italic">Sin presupuestos</p>}
+            {budgets.length === 0 && <p className="text-center w-full text-slate-400 text-[10px] py-8 italic">Sin presupuestos activos</p>}
         </div>
       )}
     </Card>

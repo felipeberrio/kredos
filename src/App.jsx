@@ -31,9 +31,8 @@ export default function App() {
   const { darkMode, setDarkMode, themeColor, wallets, goals, subscriptions, budgets, categories, workLogs, addWorkLog, updateWorkLog, companies, addCompany, updateCompany, addWallet, addGoal, addSubscription, addBudget, updateWallet, updateGoal, updateSubscription, updateBudget, updateCategory, isAllExpanded, calculatePayDate, totalBalance, selectedWalletId, getWalletNetFlow, updateWalletFromInitial, useSemanticColors, setUseSemanticColors, privacyMode, setPrivacyMode, currency, setCurrency } = useFinancial();
 
 
-  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v5', ['categories', 'budgets', 'goals', 'subs']); // ORDEN COLUMNA IZQUIERDA
-  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v3', ['work', 'events', 'history']); // ORDEN COLUMNA DERECHA
-
+  const [leftOrder, setLeftOrder] = useLocalStorage('fin_order_layout_v6', ['categories', 'goals', 'subs']); // Quitamos budgets de aquí
+  const [rightOrder, setRightOrder] = useLocalStorage('fin_order_right_v4', ['budgets', 'history', 'work', 'events']); // Añadimos budgets encima de history
   const [editingItem, setEditingItem] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState(null);
@@ -183,13 +182,14 @@ export default function App() {
           onMoveDown: () => moveRightSection(index, 'down'),
           isFirst: index === 0,
           isLast: index === rightOrder.length - 1,
-          onAdd: () => handleOpenModal('work'),
+          onAdd: () => handleOpenModal(key === 'work' ? 'work' : key === 'budgets' ? 'budget' : 'transaction'),
           onAddCompany: () => handleOpenModal('company'),
-          onEdit: (item) => handleOpenModal(key === 'work' ? 'work' : 'transaction', item), 
+          onEdit: (item) => handleOpenModal(key === 'work' ? 'work' : key === 'budgets' ? 'budget' : 'transaction', item), 
           onEditCompany: (item) => handleOpenModal('company', item)
       };
 
       switch(key) {
+          case 'budgets': return <BudgetSection {...props} />; // Nuevo caso añadido
           case 'work': return <WorkSection {...props} />;
           case 'events': return <EventsSection {...props} />;
           case 'history': return <HistorySection {...props} onEdit={(item) => setEditingItem(item)} />;
@@ -421,20 +421,18 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
           {/* COLUMNA IZQUIERDA (Estrecha) */}
           <div className="lg:col-span-4 space-y-6">
-            {/* 1. Formulario de Transacciones */}
-            <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
-            {/* 2. GRÁFICAS */}
+            {/* 1. GRÁFICAS (Movidas hacia arriba) */}
             <div className="w-full h-[400px] overflow-hidden relative">
                 <FinancialCharts onOpenProjection={() => setProjectionOpen(true)} />
             </div>
-            {/* 3. Secciones dinámicas izquierda (Categorías, Metas, etc.) 
-            <div className="flex flex-col gap-6">{leftOrder.map((key, index) => renderLeftSection(key, index))}</div>*/}
+            {/* 2. Formulario de Transacciones (Movido hacia abajo) */}
+            <TransactionForm editingItem={editingItem} setEditingItem={setEditingItem} />
           </div>
           
           {/* COLUMNA DERECHA (Ancha) */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Lista dinámica derecha (Trabajo, Eventos, Historial) */}
             <div className="flex flex-col gap-6">{rightOrder.map((key, index) => renderRightSection(key, index))}</div>
+            {/* Lista dinámica derecha (Trabajo, Eventos, Historial) */}
           </div>
         </div>
       </main>

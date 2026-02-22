@@ -11,7 +11,7 @@ import { PieChart as PieIcon, BarChart3, TrendingUp, ChevronLeft, ChevronRight, 
 
 export const FinancialCharts = ({ onOpenProjection }) => {
   const { chartExpenses, chartIncomes, themeColor, darkMode, dateFilter, selectedCategory, setSelectedCategory, calculateProjection } = useFinancial();
-  const [chartIndex, setChartIndex] = useState(0);
+  const [chartIndex, setChartIndex] = useState(0); // Inicia en 0 (Ahora es Proyección)
   const [weeklyIncome, setWeeklyIncome] = useState('');
 
   // --- DATOS ---
@@ -42,12 +42,7 @@ export const FinancialCharts = ({ onOpenProjection }) => {
     const timeline = Array.from(allDates).sort().map(date => {
         const dayExpenses = chartExpenses.filter(e => e.date === date).reduce((sum, e) => sum + Number(e.amount), 0);
         const dayIncomes = chartIncomes.filter(i => i.date === date).reduce((sum, i) => sum + Number(i.amount), 0);
-        
-        // --- CORRECCIÓN 1: Obtener el día cortando el texto para evitar error de zona horaria ---
-        // Antes: new Date(date).getDate() -> Restaba 1 día
-        // Ahora: date.split('-')[2] -> Toma el número exacto del string "YYYY-MM-DD"
         const dayName = parseInt(date.split('-')[2]);
-
         return { date, dayName, expense: dayExpenses, income: dayIncomes, net: dayIncomes - dayExpenses };
     });
     let accumulator = 0;
@@ -58,21 +53,22 @@ export const FinancialCharts = ({ onOpenProjection }) => {
       return calculateProjection(1, Number(weeklyIncome) || 0);
   }, [weeklyIncome, calculateProjection]);
 
-  // --- CONFIG ---
+  // --- CONFIG (ORDEN ACTUALIZADO) ---
   const views = [
-    { id: 'expenses', title: 'Gastos por Categoría', icon: <PieIcon size={14}/>, data: expenseData, totalLabel: 'Total Gastado' },
-    { id: 'incomes', title: 'Fuentes de Ingreso', icon: <BarChart3 size={14}/>, data: incomeData, totalLabel: 'Total Ingresado' },
-    { id: 'trend', title: 'Balance y Tendencia', icon: <TrendingUp size={14}/>, data: trendData, totalLabel: 'Flujo Neto' },
-    { id: 'projection', title: 'Proyección (30 Días)', icon: <TrendingUp size={14}/>, data: projectionData, totalLabel: 'Estimado Final' }
+    { id: 'projection', title: 'Proyección (30 Días)', icon: <TrendingUp size={14}/>, data: projectionData, totalLabel: 'Estimado Final' }, // Índice 0
+    { id: 'expenses', title: 'Gastos por Categoría', icon: <PieIcon size={14}/>, data: expenseData, totalLabel: 'Total Gastado' },       // Índice 1
+    { id: 'incomes', title: 'Fuentes de Ingreso', icon: <BarChart3 size={14}/>, data: incomeData, totalLabel: 'Total Ingresado' },         // Índice 2
+    { id: 'trend', title: 'Balance y Tendencia', icon: <TrendingUp size={14}/>, data: trendData, totalLabel: 'Flujo Neto' }                // Índice 3
   ];
 
   const currentView = views[chartIndex];
   
+  // ÍNDICES ACTUALIZADOS
   const currentTotal = useMemo(() => {
-      if(chartIndex === 0) return chartExpenses.reduce((a,b)=>a+Number(b.amount),0);
-      if(chartIndex === 1) return chartIncomes.reduce((a,b)=>a+Number(b.amount),0);
-      if(chartIndex === 2) return chartIncomes.reduce((a,b)=>a+Number(b.amount),0) - chartExpenses.reduce((a,b)=>a+Number(b.amount),0);
-      if(chartIndex === 3 && projectionData.length > 0) return projectionData[projectionData.length -1].balance;
+      if(chartIndex === 1) return chartExpenses.reduce((a,b)=>a+Number(b.amount),0);
+      if(chartIndex === 2) return chartIncomes.reduce((a,b)=>a+Number(b.amount),0);
+      if(chartIndex === 3) return chartIncomes.reduce((a,b)=>a+Number(b.amount),0) - chartExpenses.reduce((a,b)=>a+Number(b.amount),0);
+      if(chartIndex === 0 && projectionData.length > 0) return projectionData[projectionData.length -1].balance;
       return 0;
   }, [chartIndex, chartExpenses, chartIncomes, projectionData]);
 
@@ -82,7 +78,8 @@ export const FinancialCharts = ({ onOpenProjection }) => {
   const handleSliceClick = (data) => { if (selectedCategory === data.name) setSelectedCategory(null); else setSelectedCategory(data.name); };
 
   const renderContent = () => {
-    if (chartIndex !== 3 && (!currentView.data || currentView.data.length === 0)) {
+    // chartIndex 0 es ahora Proyección
+    if (chartIndex !== 0 && (!currentView.data || currentView.data.length === 0)) {
       return (
           <div className="flex flex-col items-center justify-center h-[250px] text-slate-400 opacity-60">
               <AlertCircle size={48} strokeWidth={1.5} className="mb-2"/>
@@ -91,8 +88,9 @@ export const FinancialCharts = ({ onOpenProjection }) => {
       );
   }
 
+    // SWITCH ACTUALIZADO AL NUEVO ORDEN
     switch (chartIndex) {
-      case 0: 
+      case 1: // Gastos (Dona)
         return (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -105,7 +103,7 @@ export const FinancialCharts = ({ onOpenProjection }) => {
             </PieChart>
           </ResponsiveContainer>
         );
-      case 1:
+      case 2: // Ingresos (Barras horizontales)
         return (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeData} layout="vertical" margin={{ left: 0, right: 20, top: 20, bottom: 0 }}>
@@ -118,7 +116,7 @@ export const FinancialCharts = ({ onOpenProjection }) => {
             </BarChart>
           </ResponsiveContainer>
         );
-      case 2:
+      case 3: // Tendencia (Líneas mixtas)
         return (
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={trendData} margin={{ top: 20, right: 10, bottom: 0, left: -20 }}>
@@ -133,25 +131,14 @@ export const FinancialCharts = ({ onOpenProjection }) => {
             </ComposedChart>
           </ResponsiveContainer>
         );
-      case 3:
+      case 0: // Proyección (Área simple)
         return (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={projectionData} margin={{ top: 30, right: 10, bottom: 0, left: -20 }}>
               <defs><linearGradient id="projSimGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={themeColor} stopOpacity={0.4}/><stop offset="95%" stopColor={themeColor} stopOpacity={0}/></linearGradient></defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={darkMode ? '#334155' : '#e2e8f0'} />
-              
-              {/* --- CORRECCIÓN 2: XAxis usando split para no restar 1 día --- */}
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={(d) => parseInt(d.split('-')[2])} // Corta "YYYY-MM-DD" y toma el DD
-                tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
-                tickLine={false} 
-                axisLine={false} 
-              />
-              
+              <XAxis dataKey="date" tickFormatter={(d) => parseInt(d.split('-')[2])} tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} tickLine={false} axisLine={false} />
-              
-              {/* --- CORRECCIÓN 3: Tooltip construyendo fecha segura --- */}
               <Tooltip 
                 labelFormatter={(d) => {
                     if (!d) return '';
@@ -161,7 +148,6 @@ export const FinancialCharts = ({ onOpenProjection }) => {
                 formatter={(value) => [formatCurrency(value), 'Estimado']} 
                 contentStyle={{ backgroundColor: darkMode ? '#1e293b' : '#fff', borderRadius: '12px', border: 'none', color: darkMode ? '#fff' : '#0f172a', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
               />
-              
               <Area type="monotone" dataKey="balance" stroke={themeColor} strokeWidth={3} fill="url(#projSimGrad)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -196,8 +182,8 @@ export const FinancialCharts = ({ onOpenProjection }) => {
       <div className="flex-1 w-full min-h-[250px] relative animate-in zoom-in-95 duration-500 mt-2">
         {renderContent()}
         
-        {/* TOTAL CENTRO (Dona) */}
-        {chartIndex === 0 && currentView.data && currentView.data.length > 0 && (
+        {/* TOTAL CENTRO (Dona - ahora índice 1) */}
+        {chartIndex === 1 && currentView.data && currentView.data.length > 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</span>
                 <span className={`text-2xl font-black ${darkMode ? 'text-white' : 'text-slate-800'}`}>{formatCurrency(currentTotal)}</span>
@@ -205,16 +191,16 @@ export const FinancialCharts = ({ onOpenProjection }) => {
         )}
 
         {/* TOTAL FLOTANTE (Para el resto) */}
-        {chartIndex !== 0 && (
+        {chartIndex !== 1 && (
             <div className="absolute -top-2 right-0 text-right pointer-events-none">
                 <span className="text-[8px] font-bold text-slate-400 block uppercase">{currentView.totalLabel}</span>
-                <span className={`text-xl font-black ${chartIndex === 1 ? 'text-emerald-500' : (darkMode ? 'text-white' : 'text-slate-700')}`}>{formatCurrency(currentTotal)}</span>
+                <span className={`text-xl font-black ${chartIndex === 2 ? 'text-emerald-500' : (darkMode ? 'text-white' : 'text-slate-700')}`}>{formatCurrency(currentTotal)}</span>
             </div>
         )}
       </div>
 
-      {/* LEYENDA (Dona) */}
-      {chartIndex === 0 && currentView.data && currentView.data.length > 0 && (
+      {/* LEYENDA (Dona - ahora índice 1) */}
+      {chartIndex === 1 && currentView.data && currentView.data.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-y-2 gap-x-4">
             {expenseData.slice(0, 4).map((item, i) => (
             <div key={i} className="flex items-center justify-between cursor-pointer hover:opacity-70" onClick={() => handleSliceClick(item)}>
@@ -228,8 +214,8 @@ export const FinancialCharts = ({ onOpenProjection }) => {
         </div>
       )}
 
-      {/* CONTROLES ABAJO (Footer para Proyección) */}
-      {chartIndex === 3 && (
+      {/* CONTROLES ABAJO (Footer para Proyección - ahora índice 0) */}
+      {chartIndex === 0 && (
           <div className={`mt-4 pt-3 border-t flex justify-between items-center gap-2 animate-in slide-in-from-bottom-2 ${darkMode ? 'border-slate-800' : 'border-slate-100'}`}>
               <div className="flex items-center gap-2 flex-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">Ingreso/sem:</span>
