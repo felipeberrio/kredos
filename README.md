@@ -82,6 +82,6 @@ Los tests usan mocks de Supabase, por lo que **no requieren conexión a internet
     * **Gráficos:** Distribución de gastos (Dona) y tendencias (Área).
 
 ## 🚧 Pendiente / Roadmap
-* 
+* Arreglar cambiar suscripciones con el presupuesto
 ---
 **Desarrollado con ❤️ para control total de tus finanzas.**
